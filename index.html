@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#1a1a1a"/>
+<title>Zohar Personal Trainer</title>
+<link rel="manifest" href="manifest.json"/>
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
+import { getFirestore, doc, setDoc, getDoc, collection, getDocs, addDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC9Q8Q8Q8Q8Q8Q8Q8Q8Q8Q8Q8Q8Q8Q8Q8Q",
+  authDomain: "maman-contracting-app.firebaseapp.com",
+  projectId: "maman-contracting-app",
+  storageBucket: "maman-contracting-app.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abcdef"
+};
+
+// Try Firebase, fall back to localStorage if config fails
+let app, auth, db_firebase;
+try {
+  app = initializeApp(firebaseConfig, 'ptm');
+  auth = getAuth(app);
+  db_firebase = getFirestore(app);
+  window.firebaseAuth = auth;
+  window.firebaseDB = db_firebase;
+  window.firebaseFns = { doc, setDoc, getDoc, collection, getDocs, addDoc, updateDoc, deleteDoc, query, where, onSnapshot, serverTimestamp };
+  window.firebaseReady = true;
+} catch(e) {
+  console.log('Firebase not available, using local storage');
+  window.firebaseReady = false;
+}
+
+// Auth state listener
+if (auth) {
+  onAuthStateChanged(auth, (user) => {
+    window.firebaseUser = user;
+    if (user) {
+      document.getElementById('loginPage').classList.remove('open');
+      window.currentUid = user.uid;
+      window.currentEmail = user.email;
+      loadApp();
+    } else {
+      if (!window.demoMode) {
+        document.getElementById('loginPage').classList.add('open');
+      }
+    }
+  });
+}
+
+// Expose auth functions globally
+window.fbSignUp = async (email, pass) => {
+  return await createUserWithEmailAndPassword(auth, email, pass);
+};
+window.fbSignIn = async (email, pass) => {
+  return await signInWithEmailAndPassword(auth, email, pass);
+};
+window.fbSignOut = async () => {
+  return await signOut(auth);
+};
+window.fbChangePass = async (oldPass, newPass) => {
+  const user = auth.currentUser;
+  const cred = EmailAuthProvider.credential(user.email, oldPass);
+  await reauthenticateWithCredential(user, cred);
+  return await updatePassword(user, newPass);
+};
+
+// Firestore helpers
+window.fsSet = (path, data) => setDoc(doc(db_firebase, path), data);
+window.fsGet = (path) => getDoc(doc(db_firebase, path));
+window.fsAdd = (col, data) => addDoc(collection(db_firebase, col), {...data, uid: window.currentUid, updatedAt: serverTimestamp()});
+window.fsUpdate = (path, data) => updateDoc(doc(db_firebase, path), {...data, updatedAt: serverTimestamp()});
+window.fsDelete = (path) => deleteDoc(doc(db_firebase, path));
+window.fsGetAll = async (col) => {
+  const q = query(collection(db_firebase, col), where('uid', '==', window.currentUid));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({id: d.id, ...d.data()}));
+};
+</script>
+
+<style>
+  :root {
+    --gold: #F5A623;
+    --dark: #1a1a1a;
+    --darker: #111111;
+    --card: #242424;
+    --card2: #2e2e2e;
+    --text: #ffffff;
+    --subtext: #aaaaaa;
+    --green: #4CAF50;
+    --red: #f44336;
+    --orange: #FF9800;
+    --blue: #2196F3;
+    --tab-height: 65px;
+    --header-height: 60px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { background: var(--dark); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; overflow-x: hidden; }
+
+  .header {
+    position: fixed; top: 0; left: 0; right: 0; height: var(--header-height);
+    background: var(--darker); display: flex; align-items: center; justify-content: space-between;
+    padding: 0 15px; z-index: 100; border-bottom: 2px solid var(--gold);
+  }
+  .header-logo { display: flex; flex-direction: column; align-items: center; }
+  .logo-circle {
+    width: 36px; height: 36px; background: var(--gold); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 900; color: #000; line-height: 1; overflow: hidden;
+  }
+  .logo-circle img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+  .logo-name { font-size: 9px; color: var(--gold); font-weight: 600; margin-top: 1px; letter-spacing: 0.3px; text-align: center; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .header-btn { background: none; border: none; color: var(--text); font-size: 22px; cursor: pointer; padding: 8px; }
+  .avatar-btn { width: 36px; height: 36px; border-radius: 50%; background: var(--gold); border: none; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; }
+
+  .main { padding-top: calc(var(--header-height) + 10px); padding-bottom: calc(var(--tab-height) + 10px); min-height: 100vh; }
+  .page { display: none; padding: 12px; }
+  .page.active { display: block; }
+
+  .tab-bar {
+    position: fixed; bottom: 0; left: 0; right: 0; height: var(--tab-height);
+    background: var(--darker); display: flex; border-top: 1px solid #333; z-index: 100;
+  }
+  .tab-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: none; border: none; color: var(--subtext); cursor: pointer; font-size: 10px; gap: 3px; transition: color 0.2s; }
+  .tab-btn .tab-icon { font-size: 22px; }
+  .tab-btn.active { color: var(--gold); }
+
+  .card { background: var(--card); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+  .card-title { font-size: 14px; font-weight: 700; color: var(--gold); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .alert-bar { background: rgba(244,67,54,0.15); border: 1px solid var(--red); border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; }
+  .alert-bar p { font-size: 13px; color: var(--red); font-weight: 600; }
+
+  .session-item { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #333; gap: 8px; flex-wrap: wrap; }
+  .session-item:last-child { border-bottom: none; }
+  .session-time { font-size: 13px; font-weight: 700; color: var(--gold); min-width: 48px; }
+  .session-client { flex: 1; font-size: 14px; font-weight: 600; min-width: 80px; }
+  .session-actions { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+
+  .btn-sm { padding: 6px 11px; border-radius: 20px; border: none; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .btn-paid { background: rgba(76,175,80,0.2); color: var(--green); border: 1px solid var(--green); }
+  .btn-unpaid { background: rgba(244,67,54,0.2); color: var(--red); border: 1px solid var(--red); }
+  .btn-action { background: rgba(245,166,35,0.2); color: var(--gold); border: 1px solid var(--gold); }
+  .btn-invoice { background: rgba(33,150,243,0.2); color: var(--blue); border: 1px solid var(--blue); }
+
+  .btn-primary { background: var(--gold); color: #000; border: none; border-radius: 25px; padding: 13px 24px; font-size: 15px; font-weight: 700; cursor: pointer; width: 100%; margin-bottom: 10px; }
+  .btn-danger { background: rgba(244,67,54,0.15); color: var(--red); border: 1px solid var(--red); border-radius: 25px; padding: 11px 20px; font-size: 14px; font-weight: 600; cursor: pointer; width: 100%; margin-bottom: 8px;}
+  .btn-secondary { background: var(--card2); color: var(--text); border: 1px solid #555; border-radius: 25px; padding: 11px 20px; font-size: 14px; font-weight: 600; cursor: pointer; width: 100%; margin-bottom: 8px; }
+  .btn-outline { background: transparent; color: var(--gold); border: 1px solid var(--gold); border-radius: 25px; padding: 11px 20px; font-size: 14px; font-weight: 600; cursor: pointer; width: 100%; margin-bottom: 8px; }
+
+  .fab { position: fixed; bottom: calc(var(--tab-height) + 16px); right: 16px; width: 56px; height: 56px; border-radius: 50%; background: var(--gold); border: none; font-size: 28px; color: #000; cursor: pointer; z-index: 99; box-shadow: 0 4px 16px rgba(245,166,35,0.4); display: flex; align-items: center; justify-content: center; font-weight: 300; }
+
+  .day-bar { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 14px; scrollbar-width: none; }
+  .day-bar::-webkit-scrollbar { display: none; }
+  .day-chip { min-width: 44px; padding: 8px 6px; border-radius: 12px; text-align: center; background: var(--card); border: 1px solid #333; cursor: pointer; flex-shrink: 0; }
+  .day-chip.active { background: var(--gold); border-color: var(--gold); color: #000; }
+  .day-chip .day-name { font-size: 11px; font-weight: 600; }
+  .day-chip .day-num { font-size: 16px; font-weight: 700; }
+  .view-toggle { display: flex; gap: 8px; margin-bottom: 14px; }
+  .view-btn { flex: 1; padding: 8px; border-radius: 20px; border: 1px solid #444; background: var(--card); color: var(--subtext); font-size: 13px; font-weight: 600; cursor: pointer; }
+  .view-btn.active { background: var(--gold); color: #000; border-color: var(--gold); }
+
+  .client-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #333; cursor: pointer; }
+  .client-item:last-child { border-bottom: none; }
+  .client-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--gold); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #000; flex-shrink: 0; overflow: hidden; }
+  .client-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .client-info { flex: 1; }
+  .client-name { font-size: 15px; font-weight: 700; }
+  .client-phone { font-size: 12px; color: var(--subtext); margin-top: 2px; }
+  .client-arrow { color: var(--subtext); font-size: 18px; }
+
+  .inv-tabs { display: flex; gap: 0; margin-bottom: 14px; border-radius: 10px; overflow: hidden; border: 1px solid #444; }
+  .inv-tab { flex: 1; padding: 10px; text-align: center; background: var(--card); color: var(--subtext); font-size: 14px; font-weight: 600; cursor: pointer; border: none; }
+  .inv-tab.active { background: var(--gold); color: #000; }
+  .inv-card { background: var(--card); border-radius: 12px; padding: 14px; margin-bottom: 10px; border-left: 4px solid var(--red); }
+  .inv-card.paid { border-left-color: var(--green); }
+  .inv-card.partial { border-left-color: var(--orange); }
+  .inv-header-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+  .inv-client-name { font-size: 15px; font-weight: 700; }
+  .inv-amount { font-size: 18px; font-weight: 800; color: var(--gold); }
+  .inv-detail { font-size: 12px; color: var(--subtext); margin-bottom: 4px; }
+  .status-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .badge-unpaid { background: rgba(244,67,54,0.2); color: var(--red); }
+  .badge-paid { background: rgba(76,175,80,0.2); color: var(--green); }
+  .badge-partial { background: rgba(255,152,0,0.2); color: var(--orange); }
+  .inv-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .inv-actions button { padding: 7px 13px; border-radius: 20px; border: 1px solid #444; background: var(--card2); color: var(--text); font-size: 12px; font-weight: 600; cursor: pointer; }
+  .inv-actions .mark-paid-btn { background: rgba(76,175,80,0.2); color: var(--green); border-color: var(--green); }
+  .inv-actions .del-btn { background: rgba(244,67,54,0.1); color: var(--red); border-color: var(--red); }
+
+  .task-item { display: flex; align-items: flex-start; gap: 10px; padding: 12px 0; border-bottom: 1px solid #333; }
+  .task-item:last-child { border-bottom: none; }
+  .task-info { flex: 1; }
+  .task-text { font-size: 14px; font-weight: 600; }
+  .task-time { font-size: 12px; color: var(--subtext); margin-top: 3px; }
+  .task-actions { display: flex; gap: 5px; flex-wrap: wrap; }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; align-items: flex-end; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--card); border-radius: 20px 20px 0 0; padding: 20px; width: 100%; max-height: 92vh; overflow-y: auto; }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .modal-title { font-size: 18px; font-weight: 700; color: var(--gold); }
+  .modal-close { background: none; border: none; color: var(--subtext); font-size: 24px; cursor: pointer; }
+  .form-group { margin-bottom: 14px; }
+  .form-label { font-size: 13px; color: var(--subtext); margin-bottom: 5px; display: block; font-weight: 600; }
+  .form-input { width: 100%; padding: 12px 14px; background: var(--darker); border: 1px solid #444; border-radius: 10px; color: var(--text); font-size: 15px; outline: none; }
+  .form-input:focus { border-color: var(--gold); }
+  .form-select { width: 100%; padding: 12px 14px; background: var(--darker); border: 1px solid #444; border-radius: 10px; color: var(--text); font-size: 15px; outline: none; -webkit-appearance: none; }
+  .body-parts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .body-chip { padding: 7px 14px; border-radius: 20px; border: 1px solid #444; background: var(--darker); color: var(--subtext); font-size: 13px; cursor: pointer; }
+  .body-chip.selected { background: rgba(245,166,35,0.2); border-color: var(--gold); color: var(--gold); }
+  .section-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 12px; margin-top: 6px; }
+
+  .drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 150; }
+  .drawer-overlay.open { display: block; }
+  .drawer { position: fixed; top: 0; left: -280px; width: 280px; height: 100vh; background: var(--card); z-index: 151; transition: left 0.3s ease; overflow-y: auto; padding: 20px; }
+  .drawer.open { left: 0; }
+  .drawer-title { font-size: 20px; font-weight: 700; color: var(--gold); margin-bottom: 20px; margin-top: 40px; }
+  .drawer-item { padding: 14px 0; border-bottom: 1px solid #333; font-size: 15px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 12px; }
+  .drawer-item:last-child { border-bottom: none; }
+
+  .profile-menu { display: none; position: absolute; top: calc(var(--header-height) + 5px); right: 10px; background: var(--card); border-radius: 12px; padding: 10px; min-width: 170px; border: 1px solid #444; z-index: 110; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+  .profile-menu.open { display: block; }
+  .profile-menu-item { padding: 11px 14px; font-size: 14px; font-weight: 600; cursor: pointer; border-radius: 8px; }
+  .profile-menu-item:active { background: var(--card2); }
+  .profile-menu-item.danger { color: var(--red); }
+
+  .profile-tabs { display: flex; gap: 0; margin-bottom: 14px; border-radius: 10px; overflow: hidden; border: 1px solid #444; }
+  .profile-tab { flex: 1; padding: 10px; text-align: center; background: var(--card); color: var(--subtext); font-size: 13px; font-weight: 600; cursor: pointer; border: none; }
+  .profile-tab.active { background: var(--gold); color: #000; }
+  .progress-entry { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #333; font-size: 13px; }
+  .progress-val { font-weight: 700; color: var(--gold); }
+  .progress-date { color: var(--subtext); font-size: 11px; }
+
+  .login-page { display: none; position: fixed; inset: 0; background: var(--darker); z-index: 300; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
+  .login-page.open { display: flex; }
+  .login-box { background: var(--card); border-radius: 20px; padding: 30px 20px; width: 100%; max-width: 400px; }
+  .login-logo { text-align: center; margin-bottom: 24px; }
+  .login-logo .logo-circle { width: 80px; height: 80px; font-size: 44px; margin: 0 auto 12px; }
+  .login-logo h2 { font-size: 22px; color: var(--gold); font-weight: 800; }
+  .login-logo p { font-size: 13px; color: var(--subtext); margin-top: 4px; }
+  .login-divider { text-align: center; color: var(--subtext); font-size: 13px; margin: 8px 0; }
+  .login-tabs { display: flex; margin-bottom: 20px; border-radius: 10px; overflow: hidden; border: 1px solid #444; }
+  .login-tab { flex: 1; padding: 10px; text-align: center; background: var(--card2); color: var(--subtext); font-size: 14px; font-weight: 600; cursor: pointer; border: none; }
+  .login-tab.active { background: var(--gold); color: #000; }
+
+  .weekly-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 14px; }
+  .week-day-col { background: var(--card); border-radius: 8px; padding: 6px 3px; min-height: 70px; }
+  .week-day-label { font-size: 10px; font-weight: 700; color: var(--subtext); text-align: center; margin-bottom: 4px; }
+  .week-session-dot { width: 100%; background: var(--gold); border-radius: 4px; padding: 2px; font-size: 9px; color: #000; text-align: center; margin-bottom: 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; }
+  .week-session-dot.unpaid { background: var(--red); color: #fff; }
+
+  .toast { position: fixed; bottom: calc(var(--tab-height) + 20px); left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 10px 24px; border-radius: 25px; font-size: 14px; font-weight: 600; z-index: 500; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+  .toast.success { background: rgba(76,175,80,0.9); }
+  .toast.error { background: rgba(244,67,54,0.9); }
+
+  .search-bar { display: flex; align-items: center; gap: 10px; background: var(--card2); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; }
+  .search-bar input { background: none; border: none; color: var(--text); font-size: 15px; flex: 1; outline: none; }
+  .search-bar span { color: var(--subtext); font-size: 18px; }
+
+  .demo-banner { background: rgba(245,166,35,0.15); border: 1px solid var(--gold); border-radius: 10px; padding: 8px 14px; margin-bottom: 12px; font-size: 13px; color: var(--gold); text-align: center; font-weight: 600; }
+  .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid rgba(245,166,35,0.3); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--subtext); }
+  .empty-state .emoji { font-size: 40px; margin-bottom: 12px; }
+  .empty-state p { font-size: 14px; }
+
+  .balance-total { background: rgba(245,166,35,0.1); border: 1px solid var(--gold); border-radius: 10px; padding: 12px 16px; margin-bottom: 14px; display: flex; justify-content: space-between; }
+  .balance-label { font-size: 13px; color: var(--subtext); }
+  .balance-amount { font-size: 18px; font-weight: 800; color: var(--gold); }
+</style>
+</head>
+<body>
+
+<!-- LOGIN PAGE -->
+<div class="login-page open" id="loginPage">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="logo-circle">Z</div>
+      <h2>Zohar Personal Trainer</h2>
+      <p>Personnel Trainer Manager</p>
+    </div>
+    <div class="login-tabs">
+      <button class="login-tab active" id="loginTabBtn" onclick="setAuthTab('login')">Sign In</button>
+      <button class="login-tab" id="signupTabBtn" onclick="setAuthTab('signup')">Create Account</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input type="email" class="form-input" id="loginEmail" placeholder="your@email.com" autocomplete="email"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input type="password" class="form-input" id="loginPass" placeholder="Password" autocomplete="current-password"/>
+    </div>
+    <div class="form-group" id="confirmPassGroup" style="display:none">
+      <label class="form-label">Confirm Password</label>
+      <input type="password" class="form-input" id="confirmPass" placeholder="Confirm password"/>
+    </div>
+    <button class="btn-primary" id="authBtn" onclick="doAuth()">Sign In</button>
+    <div class="login-divider">— or —</div>
+    <button class="btn-outline" onclick="doDemo()">⚡ Continue as Demo</button>
+    <p id="loginError" style="color:var(--red);font-size:13px;text-align:center;margin-top:12px;display:none;padding:8px;background:rgba(244,67,54,0.1);border-radius:8px"></p>
+  </div>
+</div>
+
+<!-- SETTINGS DRAWER -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="settingsDrawer">
+  <div class="drawer-title">⚙️ Settings</div>
+  <div class="drawer-item" onclick="closeDrawer();openModal('settingsModal')">🏢 Business Info</div>
+  <div class="drawer-item" onclick="closeDrawer();openModal('addClientModal')">👥 Add Client</div>
+  <div class="drawer-item" onclick="closeDrawer();openModal('addSessionModal')">📅 Add Session</div>
+  <div class="drawer-item" onclick="closeDrawer();openModal('addInvoiceModal')">💸 New Invoice</div>
+  <div class="drawer-item" onclick="closeDrawer();openModal('addTaskModal')">📝 Add Task</div>
+  <div class="drawer-item" style="color:var(--red);margin-top:20px" onclick="doLogout()">🚪 Logout</div>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <button class="header-btn" onclick="openDrawer()">☰</button>
+  <div class="header-logo">
+    <div class="logo-circle" id="headerLogo">Z</div>
+    <div class="logo-name" id="headerName">ZOHAR PERSONAL TRAINER</div>
+  </div>
+  <button class="avatar-btn" onclick="toggleProfileMenu()">👤</button>
+  <div class="profile-menu" id="profileMenu">
+    <div class="profile-menu-item" id="profileEmailItem" style="color:var(--subtext);font-size:12px;padding-bottom:6px;border-bottom:1px solid #333;margin-bottom:4px">user@email.com</div>
+    <div class="profile-menu-item" onclick="closeProfileMenu();openModal('settingsModal')">⚙️ Settings</div>
+    <div class="profile-menu-item" onclick="closeProfileMenu();openModal('changePassModal')">🔑 Change Password</div>
+    <div class="profile-menu-item danger" onclick="doLogout()">🚪 Logout</div>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main">
+
+  <!-- HOME -->
+  <div class="page active" id="page-home">
+    <div id="demoBannerHome"></div>
+    <div id="alertBar"></div>
+    <div class="card">
+      <div class="card-title">📅 Today's Schedule</div>
+      <div id="todaySchedule"><div class="empty-state"><div class="emoji">📋</div><p>No sessions today. Tap + to add one!</p></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📝 Tasks Due Today</div>
+      <div id="todayTasks"><div class="empty-state"><div class="emoji">✅</div><p>No tasks due today.</p></div></div>
+    </div>
+  </div>
+
+  <!-- SCHEDULE -->
+  <div class="page" id="page-schedule">
+    <div class="view-toggle">
+      <button class="view-btn active" id="viewDayBtn" onclick="setView('day')">📋 Daily</button>
+      <button class="view-btn" id="viewWeekBtn" onclick="setView('week')">📅 Weekly</button>
+    </div>
+    <div class="day-bar" id="dayBar"></div>
+    <div id="scheduleContent"></div>
+    <div id="weeklyGrid" style="display:none"></div>
+  </div>
+
+  <!-- CONTACTS -->
+  <div class="page" id="page-contacts">
+    <div class="search-bar">
+      <span>🔍</span>
+      <input type="text" placeholder="Search clients..." id="clientSearch" oninput="filterClients()"/>
+    </div>
+    <div class="card">
+      <div id="clientList"><div class="empty-state"><div class="emoji">👥</div><p>No clients yet. Tap + to add your first!</p></div></div>
+    </div>
+  </div>
+
+  <!-- INVOICES -->
+  <div class="page" id="page-invoices">
+    <div class="inv-tabs">
+      <button class="inv-tab active" id="tabUnpaid" onclick="switchInvTab('unpaid')">💰 Unpaid</button>
+      <button class="inv-tab" id="tabPaid" onclick="switchInvTab('paid')">✅ Paid</button>
+    </div>
+    <div id="invBalanceBar"></div>
+    <div id="invoiceList"></div>
+  </div>
+
+  <!-- TASKS -->
+  <div class="page" id="page-tasks">
+    <div class="card">
+      <div class="card-title">📋 Open Tasks</div>
+      <div id="openTasks"><div class="empty-state"><div class="emoji">📝</div><p>No open tasks. Tap + to add one!</p></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">✅ Completed</div>
+      <div id="closedTasks"><div class="empty-state"><div class="emoji">🎉</div><p>Completed tasks will show here.</p></div></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- FAB -->
+<button class="fab" id="fabBtn" onclick="onFab()">+</button>
+
+<!-- BOTTOM TABS -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('home')" id="tab-home"><span class="tab-icon">🏠</span>Home</button>
+  <button class="tab-btn" onclick="switchTab('schedule')" id="tab-schedule"><span class="tab-icon">📅</span>Schedule</button>
+  <button class="tab-btn" onclick="switchTab('contacts')" id="tab-contacts"><span class="tab-icon">👥</span>Clients</button>
+  <button class="tab-btn" onclick="switchTab('invoices')" id="tab-invoices"><span class="tab-icon">💸</span>Invoices</button>
+  <button class="tab-btn" onclick="switchTab('tasks')" id="tab-tasks"><span class="tab-icon">📝</span>Tasks</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ===== MODALS ===== -->
+
+<!-- ADD SESSION -->
+<div class="modal-overlay" id="addSessionModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">➕ Add Session</div>
+      <button class="modal-close" onclick="closeModal('addSessionModal')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Client *</label>
+      <select class="form-select" id="sessionClient"><option value="">Select client...</option></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Date *</label>
+      <input type="date" class="form-input" id="sessionDate"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Time *</label>
+      <input type="time" class="form-input" id="sessionTime"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Duration (minutes)</label>
+      <input type="number" class="form-input" id="sessionDuration" placeholder="60" value="60"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Body Areas Worked (optional)</label>
+      <div class="body-parts" id="bodyPartsSelect">
+        <div class="body-chip" onclick="toggleBodyPart(this)">Chest</div>
+        <div class="body-chip" onclick="toggleBodyPart(this)">Back</div>
+        <div class="body-chip" onclick="toggleBodyPart(this)">Arms</div>
+        <div class="body-chip" onclick="toggleBodyPart(this)">Legs</div>
+        <div class="body-chip" onclick="toggleBodyPart(this)">Shoulders</div>
+        <div class="body-chip" onclick="toggleBodyPart(this)">Core</div>
+        <div class="body-chip" onclick="toggleBodyPart(this)">Full Body</div>
+        <div class="body-chip" onclick="toggleBodyPart(this)">Cardio</div>
+        <div class="body-chip" onclick="toggleBodyPart(this)">Glutes</div>
+        <div class="body-chip" onclick="toggleBodyPart(this)">Stretching</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Session Notes (optional)</label>
+      <textarea class="form-input" id="sessionNotes" rows="3" placeholder="What was covered, progress, goals..."></textarea>
+    </div>
+    <button class="btn-primary" onclick="saveSession()">💾 Save Session</button>
+  </div>
+</div>
+
+<!-- ADD CLIENT -->
+<div class="modal-overlay" id="addClientModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">👤 Add Client</div>
+      <button class="modal-close" onclick="closeModal('addClientModal')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Full Name *</label>
+      <input type="text" class="form-input" id="clientName" placeholder="John Doe"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Phone *</label>
+      <input type="tel" class="form-input" id="clientPhone" placeholder="+1 555 000 0000"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input type="email" class="form-input" id="clientEmail" placeholder="john@email.com"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Address</label>
+      <input type="text" class="form-input" id="clientAddress" placeholder="123 Main St"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Goals</label>
+      <input type="text" class="form-input" id="clientGoals" placeholder="Weight loss, muscle gain..."/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Injuries / Health Notes</label>
+      <textarea class="form-input" id="clientNotes" rows="2" placeholder="Bad knee, heart condition, etc."></textarea>
+    </div>
+    <button class="btn-primary" onclick="saveClient()">💾 Save Client</button>
+  </div>
+</div>
+
+<!-- ADD INVOICE -->
+<div class="modal-overlay" id="addInvoiceModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">💸 New Invoice</div>
+      <button class="modal-close" onclick="closeModal('addInvoiceModal')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Client</label>
+      <select class="form-select" id="invClient" onchange="onInvClientChange()">
+        <option value="">Select or add client...</option>
+        <option value="__new__">➕ Add New Client</option>
+      </select>
+    </div>
+    <div id="invNewClientFields" style="display:none">
+      <div class="form-group"><label class="form-label">Name *</label><input type="text" class="form-input" id="invNewName" placeholder="Full name"/></div>
+      <div class="form-group"><label class="form-label">Phone *</label><input type="tel" class="form-input" id="invNewPhone" placeholder="Phone number"/></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Service</label>
+      <input type="text" class="form-input" id="invService" placeholder="Personal training sessions"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Date</label>
+      <input type="date" class="form-input" id="invDate"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Amount ($) *</label>
+      <input type="number" class="form-input" id="invAmount" placeholder="0.00" step="0.01"/>
+    </div>
+    <button class="btn-primary" onclick="saveInvoice()">💾 Create Invoice</button>
+  </div>
+</div>
+
+<!-- ADD TASK -->
+<div class="modal-overlay" id="addTaskModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📝 Add Task</div>
+      <button class="modal-close" onclick="closeModal('addTaskModal')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Task *</label>
+      <textarea class="form-input" id="taskText" rows="3" placeholder="What do you need to do?"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Due Date & Time</label>
+      <input type="datetime-local" class="form-input" id="taskDateTime"/>
+    </div>
+    <button class="btn-primary" onclick="saveTask()">💾 Save Task</button>
+  </div>
+</div>
+
+<!-- CLIENT PROFILE -->
+<div class="modal-overlay" id="clientProfileModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="profileClientName">Client Profile</div>
+      <button class="modal-close" onclick="closeModal('clientProfileModal')">✕</button>
+    </div>
+    <div class="profile-tabs">
+      <button class="profile-tab active" id="ptab-schedule" onclick="switchProfileTab('schedule',this)">Schedule</button>
+      <button class="profile-tab" id="ptab-dashboard" onclick="switchProfileTab('dashboard',this)">Progress</button>
+      <button class="profile-tab" id="ptab-profile" onclick="switchProfileTab('profile',this)">Profile</button>
+    </div>
+    <div id="profileTabContent"></div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🏢 Business Settings</div>
+      <button class="modal-close" onclick="closeModal('settingsModal')">✕</button>
+    </div>
+    <div class="form-group"><label class="form-label">Business Name</label><input type="text" class="form-input" id="bizName" placeholder="Zohar Personal Trainer"/></div>
+    <div class="form-group"><label class="form-label">Phone</label><input type="tel" class="form-input" id="bizPhone" placeholder="Business phone"/></div>
+    <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="bizEmail" placeholder="Business email"/></div>
+    <div class="form-group"><label class="form-label">Address</label><input type="text" class="form-input" id="bizAddress" placeholder="Business address"/></div>
+    <div class="form-group"><label class="form-label">Website</label><input type="text" class="form-input" id="bizWebsite" placeholder="www.yoursite.com"/></div>
+    <div class="form-group"><label class="form-label">Tax ID / EIN</label><input type="text" class="form-input" id="bizTaxId" placeholder="Tax ID"/></div>
+    <div class="form-group"><label class="form-label">Starting Invoice Number</label><input type="number" class="form-input" id="bizInvStart" placeholder="1001"/></div>
+    <button class="btn-primary" onclick="saveSettings()">💾 Save Settings</button>
+  </div>
+</div>
+
+<!-- CHANGE PASSWORD -->
+<div class="modal-overlay" id="changePassModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">🔑 Change Password</div>
+      <button class="modal-close" onclick="closeModal('changePassModal')">✕</button>
+    </div>
+    <div class="form-group"><label class="form-label">Current Password</label><input type="password" class="form-input" id="oldPass" placeholder="Current password"/></div>
+    <div class="form-group"><label class="form-label">New Password</label><input type="password" class="form-input" id="newPass1" placeholder="New password (min 6 chars)"/></div>
+    <div class="form-group"><label class="form-label">Confirm New Password</label><input type="password" class="form-input" id="newPass2" placeholder="Confirm new password"/></div>
+    <button class="btn-primary" onclick="changePassword()">Update Password</button>
+  </div>
+</div>
+
+<!-- MARK PAID -->
+<div class="modal-overlay" id="markPaidModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">💰 Apply Payment</div>
+      <button class="modal-close" onclick="closeModal('markPaidModal')">✕</button>
+    </div>
+    <p style="color:var(--subtext);font-size:14px;margin-bottom:16px">Enter the amount paid. Full amount = invoice closed ✅</p>
+    <div class="form-group"><label class="form-label">Amount Paid ($)</label><input type="number" class="form-input" id="payAmount" step="0.01" placeholder="0.00"/></div>
+    <button class="btn-primary" onclick="applyPayment()">✅ Apply Payment</button>
+  </div>
+</div>
+
+<!-- RESCHEDULE -->
+<div class="modal-overlay" id="rescheduleModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📅 Reschedule Session</div>
+      <button class="modal-close" onclick="closeModal('rescheduleModal')">✕</button>
+    </div>
+    <div class="form-group"><label class="form-label">New Date</label><input type="date" class="form-input" id="reschedDate"/></div>
+    <div class="form-group"><label class="form-label">New Time</label><input type="time" class="form-input" id="reschedTime"/></div>
+    <button class="btn-primary" onclick="applyReschedule()">📅 Reschedule</button>
+  </div>
+</div>
+
+<!-- ADD PROGRESS -->
+<div class="modal-overlay" id="addProgressModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📊 Log Progress</div>
+      <button class="modal-close" onclick="closeModal('addProgressModal')">✕</button>
+    </div>
+    <div class="form-group"><label class="form-label">Weight (lbs)</label><input type="number" class="form-input" id="progWeight" placeholder="185" step="0.1"/></div>
+    <div class="form-group"><label class="form-label">Height (in) — for BMI</label><input type="number" class="form-input" id="progHeight" placeholder="70" step="0.1"/></div>
+    <div class="form-group"><label class="form-label">Body Fat %</label><input type="number" class="form-input" id="progBodyFat" placeholder="20" step="0.1"/></div>
+    <div class="form-group"><label class="form-label">Muscle Mass %</label><input type="number" class="form-input" id="progMuscle" placeholder="40" step="0.1"/></div>
+    <div class="form-group"><label class="form-label">Notes</label><input type="text" class="form-input" id="progNotes" placeholder="Feeling stronger, energy up..."/></div>
+    <button class="btn-primary" onclick="saveProgress()">💾 Save Progress</button>
+  </div>
+</div>
+
+<script>
+// ===== DATA STORE (localStorage fallback) =====
+let DB = {
+  clients: [], sessions: [], invoices: [], tasks: [],
+  settings: { bizName:'Zohar Personal Trainer', bizPhone:'', bizEmail:'', bizAddress:'', bizWebsite:'', bizTaxId:'', nextInvNum:1001 },
+  user: null
+};
+let isDemoMode = false;
+
+function loadDB() {
+  try { const s = localStorage.getItem('ptm_v2'); if (s) DB = {...DB, ...JSON.parse(s)}; } catch(e) {}
+}
+function saveDB() {
+  try { localStorage.setItem('ptm_v2', JSON.stringify(DB)); } catch(e) {}
+}
+
+// ===== AUTH =====
+let authTab = 'login';
+function setAuthTab(tab) {
+  authTab = tab;
+  document.getElementById('loginTabBtn').classList.toggle('active', tab==='login');
+  document.getElementById('signupTabBtn').classList.toggle('active', tab==='signup');
+  document.getElementById('authBtn').textContent = tab === 'login' ? 'Sign In' : 'Create Account';
+  document.getElementById('confirmPassGroup').style.display = tab === 'signup' ? 'block' : 'none';
+  document.getElementById('loginError').style.display = 'none';
+}
+
+async function doAuth() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  if (!email || !pass) { showLoginErr('Please enter email and password.'); return; }
+  const btn = document.getElementById('authBtn');
+  btn.innerHTML = '<span class="spinner"></span>Please wait...';
+  btn.disabled = true;
+  try {
+    if (authTab === 'signup') {
+      const confirm = document.getElementById('confirmPass').value;
+      if (pass !== confirm) { showLoginErr('Passwords do not match.'); return; }
+      if (pass.length < 6) { showLoginErr('Password must be at least 6 characters.'); return; }
+      if (window.fbSignUp) {
+        await window.fbSignUp(email, pass);
+        // onAuthStateChanged will handle the rest
+      } else { fallbackLogin(email); }
+    } else {
+      if (window.fbSignIn) {
+        await window.fbSignIn(email, pass);
+      } else { fallbackLogin(email); }
+    }
+  } catch(e) {
+    const msgs = {
+      'auth/user-not-found': 'No account found with this email.',
+      'auth/wrong-password': 'Incorrect password.',
+      'auth/email-already-in-use': 'An account with this email already exists.',
+      'auth/invalid-email': 'Invalid email address.',
+      'auth/weak-password': 'Password is too weak (min 6 characters).',
+      'auth/too-many-requests': 'Too many attempts. Please wait a moment.',
+      'auth/invalid-credential': 'Incorrect email or password.'
+    };
+    showLoginErr(msgs[e.code] || 'Error: ' + (e.message || 'Unknown error'));
+  } finally {
+    btn.textContent = authTab === 'login' ? 'Sign In' : 'Create Account';
+    btn.disabled = false;
+  }
+}
+
+function fallbackLogin(email) {
+  DB.user = { email };
+  saveDB();
+  document.getElementById('loginPage').classList.remove('open');
+  loadApp();
+}
+
+function doDemo() {
+  isDemoMode = true;
+  window.demoMode = true;
+  DB.user = { email: 'demo@zohartrainer.com' };
+  loadDemoData();
+  saveDB();
+  document.getElementById('loginPage').classList.remove('open');
+  loadApp();
+}
+
+function loadDemoData() {
+  const today = new Date().toISOString().split('T')[0];
+  DB.clients = [
+    { id:'c1', name:'John Smith', phone:'(555) 010-1010', email:'john@email.com', address:'123 Broadway, NYC', goals:'Build muscle, lose 15lbs', notes:'Bad left knee — avoid deep squats', progress:[{date:'2024-01-10',weight:195,bmi:27.2,bodyFat:22,muscle:38,notes:'Starting point'},{date:'2024-02-10',weight:190,bmi:26.5,bodyFat:20,muscle:40,notes:'Great progress!'}] },
+    { id:'c2', name:'Sarah Lee', phone:'(555) 020-2020', email:'sarah@email.com', address:'456 Park Ave, NYC', goals:'Lose 20lbs, tone up', notes:'No injuries', progress:[{date:'2024-01-15',weight:155,bmi:24.1,bodyFat:28,muscle:32,notes:'Starting weight'}] },
+    { id:'c3', name:'Mike Johnson', phone:'(555) 030-3030', email:'mike@gmail.com', address:'', goals:'Cardio and strength', notes:'', progress:[] }
+  ];
+  DB.sessions = [
+    { id:'s1', clientId:'c2', date:today, time:'08:00', duration:60, paid:true, bodyParts:['Legs','Core'], notes:'Squats, lunges, planks — excellent form', invoiceId:null },
+    { id:'s2', clientId:'c1', date:today, time:'10:00', duration:60, paid:false, bodyParts:['Chest','Arms'], notes:'Bench press PR today!', invoiceId:null },
+    { id:'s3', clientId:'c3', date:today, time:'16:30', duration:45, paid:false, bodyParts:['Back','Shoulders'], notes:'', invoiceId:null },
+    { id:'s4', clientId:'c1', date:getPrevDate(1), time:'09:00', duration:60, paid:true, bodyParts:['Legs'], notes:'', invoiceId:'i2' },
+    { id:'s5', clientId:'c2', date:getPrevDate(2), time:'08:00', duration:60, paid:true, bodyParts:['Cardio','Core'], notes:'5K run + abs', invoiceId:'i2' }
+  ];
+  DB.invoices = [
+    { id:'i1', num:1001, clientId:'c1', service:'Personal Training — March', date:today, amount:150, paid:0, status:'unpaid' },
+    { id:'i2', num:1002, clientId:'c2', service:'Personal Training — February', date:getPrevDate(30), amount:200, paid:200, status:'paid' },
+    { id:'i3', num:1003, clientId:'c3', service:'Personal Training — March', date:today, amount:120, paid:60, status:'partial' }
+  ];
+  DB.tasks = [
+    { id:'t1', text:'Order new resistance bands (25lb set)', datetime:today+'T13:00', done:false },
+    { id:'t2', text:'Call John re: next week schedule', datetime:today+'T10:30', done:false },
+    { id:'t3', text:'Send invoice reminders', datetime:today+'T09:00', done:true }
+  ];
+  DB.settings.nextInvNum = 1004;
+}
+
+function getPrevDate(days) {
+  const d = new Date(); d.setDate(d.getDate()-days);
+  return d.toISOString().split('T')[0];
+}
+
+function showLoginErr(msg) {
+  const el = document.getElementById('loginError');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+async function doLogout() {
+  if (window.fbSignOut && !isDemoMode) {
+    try { await window.fbSignOut(); } catch(e) {}
+  }
+  isDemoMode = false;
+  window.demoMode = false;
+  DB.user = null; DB.clients=[]; DB.sessions=[]; DB.invoices=[]; DB.tasks=[];
+  saveDB();
+  location.reload();
+}
+
+// ===== APP =====
+function loadApp() {
+  document.getElementById('profileEmailItem').textContent = DB.user?.email || '';
+  document.getElementById('headerName').textContent = DB.settings.bizName.toUpperCase();
+  loadSettingsForm();
+  renderHome();
+  renderDayBar();
+  renderClients();
+  renderInvoices();
+  renderTasks();
+  populateClientSelects();
+  // Set defaults
+  document.getElementById('sessionDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('invDate').value = new Date().toISOString().split('T')[0];
+}
+
+// ===== TABS =====
+let currentTab = 'home';
+function switchTab(tab) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-'+tab).classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+  currentTab = tab;
+}
+
+function onFab() {
+  const map = { home:'addSessionModal', schedule:'addSessionModal', contacts:'addClientModal', invoices:'addInvoiceModal', tasks:'addTaskModal' };
+  openModal(map[currentTab] || 'addSessionModal');
+}
+
+// ===== MODALS =====
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', function(e) { if(e.target===this) this.classList.remove('open'); }));
+
+// ===== DRAWER =====
+function openDrawer() { document.getElementById('settingsDrawer').classList.add('open'); document.getElementById('drawerOverlay').classList.add('open'); }
+function closeDrawer() { document.getElementById('settingsDrawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('open'); }
+
+// ===== PROFILE MENU =====
+function toggleProfileMenu() { document.getElementById('profileMenu').classList.toggle('open'); }
+function closeProfileMenu() { document.getElementById('profileMenu').classList.remove('open'); }
+document.addEventListener('click', e => { if(!e.target.closest('.avatar-btn')&&!e.target.closest('.profile-menu')) closeProfileMenu(); });
+
+// ===== TOAST =====
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show' + (type?' '+type:'');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ===== HOME =====
+function renderHome() {
+  const today = new Date().toISOString().split('T')[0];
+
+  // Demo banner
+  document.getElementById('demoBannerHome').innerHTML = isDemoMode
+    ? '<div class="demo-banner">⚡ Demo Mode — Data is local only. Create an account to save permanently.</div>' : '';
+
+  // Alerts
+  const unpaid = DB.sessions.filter(s => !s.paid);
+  const alertBar = document.getElementById('alertBar');
+  if (unpaid.length > 0) {
+    const total = DB.invoices.filter(i=>i.status!=='paid').reduce((s,i)=>s+(i.amount-(i.paid||0)),0);
+    alertBar.innerHTML = `<div class="alert-bar"><p>⚠️ ${unpaid.length} unpaid session${unpaid.length>1?'s':''} | $${total.toFixed(2)} open balance — tap Invoices</p></div>`;
+  } else alertBar.innerHTML = '';
+
+  // Today's schedule
+  const todaySess = DB.sessions.filter(s=>s.date===today).sort((a,b)=>a.time.localeCompare(b.time));
+  const schedDiv = document.getElementById('todaySchedule');
+  if (!todaySess.length) {
+    schedDiv.innerHTML = '<div class="empty-state"><div class="emoji">📋</div><p>No sessions today. Tap + to add one!</p></div>';
+  } else {
+    schedDiv.innerHTML = todaySess.map(s => {
+      const c = DB.clients.find(cl=>cl.id===s.clientId);
+      return `<div class="session-item">
+        <div class="session-time">${s.time}</div>
+        <div class="session-client"><div>${c?c.name:'Unknown'}</div><div style="font-size:11px;color:var(--subtext)">${s.bodyParts&&s.bodyParts.length?s.bodyParts.join(', '):''}</div></div>
+        <div class="session-actions">
+          ${s.paid
+            ? '<span class="btn-sm btn-paid">Paid ✅</span>'
+            : `<button class="btn-sm btn-unpaid" onclick="quickMarkPaid('${s.id}')">Mark Paid</button>
+               <button class="btn-sm btn-invoice" onclick="createInvoiceFromSession('${s.id}')">Invoice</button>`}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Today's tasks
+  const todayTasks = DB.tasks.filter(t=>!t.done&&t.datetime&&t.datetime.startsWith(today));
+  const taskDiv = document.getElementById('todayTasks');
+  if (!todayTasks.length) {
+    taskDiv.innerHTML = '<div class="empty-state"><div class="emoji">✅</div><p>No tasks due today.</p></div>';
+  } else {
+    taskDiv.innerHTML = todayTasks.map(t=>`
+      <div class="task-item">
+        <div class="task-info"><div class="task-text">${t.text}</div><div class="task-time">${fmtDT(t.datetime)}</div></div>
+        <div class="task-actions"><button class="btn-sm btn-paid" onclick="doneTask('${t.id}')">Done ✅</button></div>
+      </div>`).join('');
+  }
+}
+
+// ===== SCHEDULE =====
+let currentView = 'day';
+let selectedDate = new Date().toISOString().split('T')[0];
+
+function setView(v) {
+  currentView = v;
+  document.getElementById('viewDayBtn').classList.toggle('active', v==='day');
+  document.getElementById('viewWeekBtn').classList.toggle('active', v==='week');
+  document.getElementById('scheduleContent').style.display = v==='day'?'block':'none';
+  document.getElementById('weeklyGrid').style.display = v==='week'?'block':'none';
+  if(v==='day') renderDaySchedule(); else renderWeeklyGrid();
+}
+
+function renderDayBar() {
+  const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const today = new Date(); let html='';
+  for(let i=-3;i<=10;i++) {
+    const d=new Date(today); d.setDate(today.getDate()+i);
+    const ds=d.toISOString().split('T')[0];
+    const hasSess = DB.sessions.some(s=>s.date===ds);
+    html+=`<div class="day-chip ${ds===selectedDate?'active':''}" onclick="selectDay('${ds}')">
+      <div class="day-name">${days[d.getDay()]}</div>
+      <div class="day-num">${d.getDate()}</div>
+      ${hasSess?`<div style="width:6px;height:6px;border-radius:50%;background:${ds===selectedDate?'#000':'var(--gold)'};margin:2px auto 0"></div>`:''}
+    </div>`;
+  }
+  document.getElementById('dayBar').innerHTML = html;
+  renderDaySchedule();
+}
+
+function selectDay(ds) { selectedDate=ds; renderDayBar(); }
+
+function renderDaySchedule() {
+  const sessions = DB.sessions.filter(s=>s.date===selectedDate).sort((a,b)=>a.time.localeCompare(b.time));
+  const content = document.getElementById('scheduleContent');
+  if(!sessions.length) {
+    content.innerHTML='<div class="card"><div class="empty-state"><div class="emoji">📅</div><p>No sessions this day. Tap + to add!</p></div></div>';
+    return;
+  }
+  content.innerHTML='<div class="card">'+sessions.map(s=>{
+    const c=DB.clients.find(cl=>cl.id===s.clientId);
+    return `<div class="session-item">
+      <div class="session-time">${s.time}</div>
+      <div class="session-client">
+        <div style="font-weight:700">${c?c.name:'Unknown'}</div>
+        <div style="font-size:11px;color:var(--subtext)">${s.duration||60}min${s.bodyParts&&s.bodyParts.length?' · '+s.bodyParts.join(', '):''}</div>
+        ${s.notes?`<div style="font-size:11px;color:var(--subtext);margin-top:2px">${s.notes}</div>`:''}
+      </div>
+      <div class="session-actions">
+        ${s.paid?'<span class="btn-sm btn-paid">Paid ✅</span>':`<button class="btn-sm btn-unpaid" onclick="quickMarkPaid('${s.id}')">Mark Paid</button>`}
+        <button class="btn-sm btn-action" onclick="rescheduleSession('${s.id}')">📅 Move</button>
+        <button class="btn-sm" style="background:rgba(244,67,54,0.1);color:var(--red);border:1px solid var(--red)" onclick="deleteSession('${s.id}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join('')+'</div>';
+}
+
+function renderWeeklyGrid() {
+  const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const today=new Date(); const sow=new Date(today); sow.setDate(today.getDate()-today.getDay());
+  let html='<div class="weekly-grid">';
+  for(let i=0;i<7;i++) {
+    const d=new Date(sow); d.setDate(sow.getDate()+i);
+    const ds=d.toISOString().split('T')[0];
+    const daySess=DB.sessions.filter(s=>s.date===ds);
+    html+=`<div class="week-day-col">
+      <div class="week-day-label">${days[i]}<br>${d.getDate()}</div>
+      ${daySess.map(s=>{
+        const c=DB.clients.find(cl=>cl.id===s.clientId);
+        return `<div class="week-session-dot ${s.paid?'':'unpaid'}" onclick="selectDay('${ds}');setView('day')">${c?c.name.split(' ')[0]:'?'}</div>`;
+      }).join('')}
+    </div>`;
+  }
+  html+='</div>'; document.getElementById('weeklyGrid').innerHTML=html;
+}
+
+// ===== SESSION ACTIONS =====
+function saveSession() {
+  const clientId=document.getElementById('sessionClient').value;
+  const date=document.getElementById('sessionDate').value;
+  const time=document.getElementById('sessionTime').value;
+  if(!clientId||!date||!time){showToast('Client, date & time required!','error');return;}
+  const bodyParts=Array.from(document.querySelectorAll('#bodyPartsSelect .body-chip.selected')).map(c=>c.textContent);
+  DB.sessions.push({
+    id:'S'+Date.now(), clientId, date, time,
+    duration:parseInt(document.getElementById('sessionDuration').value)||60,
+    paid:false, bodyParts, notes:document.getElementById('sessionNotes').value, invoiceId:null
+  });
+  saveDB(); closeModal('addSessionModal');
+  // Reset
+  document.getElementById('sessionClient').value='';
+  document.getElementById('sessionNotes').value='';
+  document.querySelectorAll('#bodyPartsSelect .body-chip').forEach(c=>c.classList.remove('selected'));
+  renderHome(); renderDayBar(); renderWeeklyGrid();
+  showToast('Session saved! 💪','success');
+}
+
+function quickMarkPaid(id) {
+  const s=DB.sessions.find(s=>s.id===id);
+  if(s){s.paid=true;saveDB();renderHome();renderDaySchedule();showToast('Marked as paid ✅','success');}
+}
+
+function deleteSession(id) {
+  if(!confirm('Delete this session?')) return;
+  DB.sessions=DB.sessions.filter(s=>s.id!==id);
+  saveDB(); renderDaySchedule(); renderHome(); showToast('Session deleted');
+}
+
+let reschedTargetId=null;
+function rescheduleSession(id) {
+  reschedTargetId=id;
+  const s=DB.sessions.find(s=>s.id===id);
+  if(s){document.getElementById('reschedDate').value=s.date;document.getElementById('reschedTime').value=s.time;}
+  openModal('rescheduleModal');
+}
+function applyReschedule() {
+  const s=DB.sessions.find(s=>s.id===reschedTargetId);
+  if(s){s.date=document.getElementById('reschedDate').value;s.time=document.getElementById('reschedTime').value;saveDB();closeModal('rescheduleModal');renderDayBar();renderWeeklyGrid();renderHome();showToast('Rescheduled! 📅','success');}
+}
+
+function toggleBodyPart(el){el.classList.toggle('selected');}
+
+// ===== CLIENTS =====
+function saveClient() {
+  const name=document.getElementById('clientName').value.trim();
+  const phone=document.getElementById('clientPhone').value.trim();
+  if(!name||!phone){showToast('Name & phone required!','error');return;}
+  DB.clients.push({id:'C'+Date.now(),name,phone,email:document.getElementById('clientEmail').value,address:document.getElementById('clientAddress').value,goals:document.getElementById('clientGoals').value,notes:document.getElementById('clientNotes').value,progress:[]});
+  saveDB(); closeModal('addClientModal');
+  ['clientName','clientPhone','clientEmail','clientAddress','clientGoals','clientNotes'].forEach(id=>document.getElementById(id).value='');
+  renderClients(); populateClientSelects(); showToast('Client added! 👤','success');
+}
+
+function renderClients(filter='') {
+  const list=document.getElementById('clientList');
+  let clients=DB.clients;
+  if(filter) clients=clients.filter(c=>c.name.toLowerCase().includes(filter.toLowerCase())||c.phone.includes(filter));
+  if(!clients.length){list.innerHTML='<div class="empty-state"><div class="emoji">👥</div><p>No clients yet. Tap + to add!</p></div>';return;}
+  list.innerHTML=clients.map(c=>`
+    <div class="client-item" onclick="openClientProfile('${c.id}')">
+      <div class="client-avatar">${c.name.charAt(0).toUpperCase()}</div>
+      <div class="client-info">
+        <div class="client-name">${c.name}</div>
+        <div class="client-phone">${c.phone}${c.email?' · '+c.email:''}</div>
+      </div>
+      <div class="client-arrow">›</div>
+    </div>`).join('');
+}
+
+function filterClients(){renderClients(document.getElementById('clientSearch').value);}
+
+let currentProfileClientId=null;
+function openClientProfile(id) {
+  currentProfileClientId=id;
+  const c=DB.clients.find(cl=>cl.id===id);if(!c)return;
+  document.getElementById('profileClientName').textContent=c.name;
+  document.querySelectorAll('.profile-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('ptab-schedule').classList.add('active');
+  switchProfileTab('schedule',null);
+  openModal('clientProfileModal');
+}
+
+function switchProfileTab(tab,btn) {
+  if(btn){document.querySelectorAll('.profile-tab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
+  const c=DB.clients.find(cl=>cl.id===currentProfileClientId);
+  const content=document.getElementById('profileTabContent');
+  if(tab==='schedule') {
+    const sessions=DB.sessions.filter(s=>s.clientId===currentProfileClientId).sort((a,b)=>b.date.localeCompare(a.date));
+    content.innerHTML=sessions.length
+      ?'<div style="max-height:400px;overflow-y:auto">'+sessions.map(s=>`<div class="session-item">
+          <div class="session-time">${s.date}<br><small>${s.time}</small></div>
+          <div class="session-client"><div style="font-weight:600">${s.bodyParts&&s.bodyParts.length?s.bodyParts.join(', '):'General'}</div><div style="font-size:11px;color:var(--subtext)">${s.notes||''}</div></div>
+          <span class="btn-sm ${s.paid?'btn-paid':'btn-unpaid'}">${s.paid?'Paid ✅':'Unpaid ❌'}</span>
+        </div>`).join('')+'</div>'
+      :'<div class="empty-state"><div class="emoji">📅</div><p>No sessions yet.</p></div>';
+  } else if(tab==='dashboard') {
+    const prog=c.progress||[];
+    content.innerHTML=`<button class="btn-primary" onclick="openModal('addProgressModal')">➕ Log Progress</button>
+      ${prog.length
+        ?prog.slice().reverse().map(p=>`<div class="progress-entry">
+            <div><div style="font-weight:700">${p.date}</div><div style="font-size:11px;color:var(--subtext)">${p.notes||''}</div></div>
+            <div style="text-align:right">
+              ${p.weight?`<div class="progress-val">${p.weight} lbs</div>`:''}
+              ${p.bmi?`<div style="font-size:12px;color:var(--subtext)">BMI: ${p.bmi}</div>`:''}
+              ${p.bodyFat?`<div style="font-size:12px;color:var(--subtext)">Fat: ${p.bodyFat}%</div>`:''}
+            </div>
+          </div>`).join('')
+        :'<div class="empty-state"><div class="emoji">📊</div><p>No progress logged yet.</p></div>'}`;
+  } else if(tab==='profile') {
+    content.innerHTML=`
+      <div class="form-group"><label class="form-label">Name</label><input class="form-input" value="${c.name}" onchange="updateClient('${c.id}','name',this.value)"/></div>
+      <div class="form-group"><label class="form-label">Phone</label><input class="form-input" value="${c.phone||''}" onchange="updateClient('${c.id}','phone',this.value)"/></div>
+      <div class="form-group"><label class="form-label">Email</label><input class="form-input" value="${c.email||''}" onchange="updateClient('${c.id}','email',this.value)"/></div>
+      <div class="form-group"><label class="form-label">Address</label><input class="form-input" value="${c.address||''}" onchange="updateClient('${c.id}','address',this.value)"/></div>
+      <div class="form-group"><label class="form-label">Goals</label><input class="form-input" value="${c.goals||''}" onchange="updateClient('${c.id}','goals',this.value)"/></div>
+      <div class="form-group"><label class="form-label">Injuries / Notes</label><textarea class="form-input" rows="2" onchange="updateClient('${c.id}','notes',this.value)">${c.notes||''}</textarea></div>
+      <button class="btn-primary" onclick="updateClientSave('${c.id}')">💾 Save Changes</button>
+      <button class="btn-danger" onclick="deleteClient('${c.id}')">🗑️ Delete Client</button>`;
+  }
+}
+
+function updateClient(id,field,val){const c=DB.clients.find(cl=>cl.id===id);if(c){c[field]=val;}}
+function updateClientSave(id){saveDB();renderClients();populateClientSelects();showToast('Client updated ✅','success');}
+function deleteClient(id){if(!confirm('Delete this client and all their sessions?'))return;DB.clients=DB.clients.filter(c=>c.id!==id);DB.sessions=DB.sessions.filter(s=>s.clientId!==id);saveDB();closeModal('clientProfileModal');renderClients();showToast('Client deleted');}
+
+function saveProgress() {
+  const c=DB.clients.find(cl=>cl.id===currentProfileClientId);if(!c)return;
+  const w=parseFloat(document.getElementById('progWeight').value);
+  const h=parseFloat(document.getElementById('progHeight').value);
+  const bmi=w&&h?Math.round((w/(h*h))*703*10)/10:null;
+  if(!c.progress)c.progress=[];
+  c.progress.push({date:new Date().toISOString().split('T')[0],weight:w||null,bmi,bodyFat:parseFloat(document.getElementById('progBodyFat').value)||null,muscle:parseFloat(document.getElementById('progMuscle').value)||null,notes:document.getElementById('progNotes').value});
+  saveDB();closeModal('addProgressModal');
+  ['progWeight','progHeight','progBodyFat','progMuscle','progNotes'].forEach(id=>document.getElementById(id).value='');
+  switchProfileTab('dashboard',null);showToast('Progress logged! 📊','success');
+}
+
+// ===== INVOICES =====
+let invTab='unpaid';
+function switchInvTab(t){invTab=t;document.getElementById('tabUnpaid').classList.toggle('active',t==='unpaid');document.getElementById('tabPaid').classList.toggle('active',t==='paid');renderInvoices();}
+
+function renderInvoices() {
+  const invs=DB.invoices.filter(i=>invTab==='paid'?i.status==='paid':i.status!=='paid');
+  const list=document.getElementById('invoiceList');
+  // Balance bar for unpaid
+  const balBar=document.getElementById('invBalanceBar');
+  if(invTab==='unpaid'){
+    const total=DB.invoices.filter(i=>i.status!=='paid').reduce((s,i)=>s+(i.amount-(i.paid||0)),0);
+    balBar.innerHTML=total>0?`<div class="balance-total"><span class="balance-label">Total Outstanding</span><span class="balance-amount">$${total.toFixed(2)}</span></div>`:'';
+  } else balBar.innerHTML='';
+  if(!invs.length){list.innerHTML=`<div class="empty-state"><div class="emoji">${invTab==='paid'?'✅':'💰'}</div><p>No ${invTab} invoices.</p></div>`;return;}
+  list.innerHTML=invs.map(i=>{
+    const c=DB.clients.find(cl=>cl.id===i.clientId);
+    const bal=(i.amount-(i.paid||0)).toFixed(2);
+    const sc=i.status==='paid'?'paid':i.status==='partial'?'partial':'';
+    const badge=i.status==='paid'?'<span class="status-badge badge-paid">Paid ✅</span>':i.status==='partial'?`<span class="status-badge badge-partial">Partial — $${bal} due</span>`:`<span class="status-badge badge-unpaid">Unpaid — $${bal} due</span>`;
+    return `<div class="inv-card ${sc}">
+      <div class="inv-header-row">
+        <div>
+          <div class="inv-client-name">${c?c.name:'Unknown'}</div>
+          <div class="inv-detail">#${i.num} · ${i.service||'Personal Training'}</div>
+          <div class="inv-detail">${i.date}${c?' · '+c.phone:''}</div>
+          ${badge}
+        </div>
+        <div style="text-align:right;flex-shrink:0;margin-left:10px">
+          <div class="inv-amount">$${i.amount.toFixed(2)}</div>
+        </div>
+      </div>
+      <div class="inv-actions">
+        ${i.status!=='paid'?`<button class="mark-paid-btn" onclick="openMarkPaid('${i.id}')">💰 Pay</button>`:''}
+        <button onclick="sendInvEmail('${i.id}')">📧 Email</button>
+        <button onclick="printInvoice('${i.id}')">🖨️ Print</button>
+        <button class="del-btn" onclick="deleteInvoice('${i.id}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+let currentInvId=null;
+function openMarkPaid(id){currentInvId=id;const inv=DB.invoices.find(i=>i.id===id);if(inv)document.getElementById('payAmount').value=(inv.amount-(inv.paid||0)).toFixed(2);openModal('markPaidModal');}
+function applyPayment(){
+  const inv=DB.invoices.find(i=>i.id===currentInvId);if(!inv)return;
+  const amt=parseFloat(document.getElementById('payAmount').value)||0;
+  inv.paid=(inv.paid||0)+amt;
+  if(inv.paid>=inv.amount){inv.status='paid';inv.paid=inv.amount;}else if(inv.paid>0)inv.status='partial';
+  saveDB();closeModal('markPaidModal');renderInvoices();
+  showToast(inv.status==='paid'?'Invoice paid & closed! ✅':'Payment applied 💰',inv.status==='paid'?'success':'');
+}
+function deleteInvoice(id){if(!confirm('Delete this invoice? This cannot be undone.'))return;DB.invoices=DB.invoices.filter(i=>i.id!==id);saveDB();renderInvoices();showToast('Invoice deleted');}
+
+function onInvClientChange(){document.getElementById('invNewClientFields').style.display=document.getElementById('invClient').value==='__new__'?'block':'none';}
+
+function saveInvoice(){
+  let clientId=document.getElementById('invClient').value;
+  if(clientId==='__new__'){
+    const name=document.getElementById('invNewName').value.trim(),phone=document.getElementById('invNewPhone').value.trim();
+    if(!name||!phone){showToast('Client name & phone required!','error');return;}
+    const nc={id:'C'+Date.now(),name,phone,email:'',address:'',goals:'',notes:'',progress:[]};
+    DB.clients.push(nc);clientId=nc.id;renderClients();populateClientSelects();
+  }
+  if(!clientId){showToast('Please select a client!','error');return;}
+  const amount=parseFloat(document.getElementById('invAmount').value);
+  if(!amount){showToast('Please enter an amount!','error');return;}
+  DB.invoices.push({id:'I'+Date.now(),num:DB.settings.nextInvNum++,clientId,service:document.getElementById('invService').value||'Personal Training',date:document.getElementById('invDate').value||new Date().toISOString().split('T')[0],amount,paid:0,status:'unpaid'});
+  saveDB();closeModal('addInvoiceModal');
+  ['invNewName','invNewPhone','invService','invAmount'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('invClient').value='';document.getElementById('invNewClientFields').style.display='none';
+  renderInvoices();showToast('Invoice created! 💸','success');
+}
+
+function createInvoiceFromSession(sid){const s=DB.sessions.find(s=>s.id===sid);if(!s)return;document.getElementById('invClient').value=s.clientId;document.getElementById('invDate').value=s.date;document.getElementById('invService').value='Personal Training'+(s.bodyParts&&s.bodyParts.length?' — '+s.bodyParts.join(', '):'');switchTab('invoices');openModal('addInvoiceModal');}
+
+function sendInvEmail(id){
+  const inv=DB.invoices.find(i=>i.id===id),c=DB.clients.find(cl=>cl.id===inv?.clientId),s=DB.settings;
+  if(!c?.email){showToast('No email on file for this client','error');return;}
+  const sub=encodeURIComponent(`Invoice #${inv.num} — ${s.bizName}`);
+  const body=encodeURIComponent(`Hi ${c.name},\n\nPlease find your invoice details below:\n\nInvoice #${inv.num}\nDate: ${inv.date}\nService: ${inv.service}\nAmount: $${inv.amount.toFixed(2)}\nBalance Due: $${(inv.amount-(inv.paid||0)).toFixed(2)}\n\nThank you!\n${s.bizName}\n${s.bizPhone||''}\n${s.bizEmail||''}`);
+  window.open(`mailto:${c.email}?subject=${sub}&body=${body}`);
+}
+
+function printInvoice(id){
+  const inv=DB.invoices.find(i=>i.id===id),c=DB.clients.find(cl=>cl.id===inv?.clientId),s=DB.settings;
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>Invoice #${inv.num}</title><style>
+    body{font-family:Arial,sans-serif;padding:40px;color:#222;max-width:700px;margin:0 auto;}
+    .top{display:flex;justify-content:space-between;margin-bottom:30px;align-items:flex-start;}
+    h1{color:#F5A623;font-size:30px;margin:0;} .inv-title{font-size:28px;font-weight:bold;color:#333;}
+    table{width:100%;border-collapse:collapse;margin:20px 0;} th{background:#F5A623;padding:12px;text-align:left;}
+    td{padding:12px;border-bottom:1px solid #eee;} .totals{text-align:right;margin-top:10px;}
+    .totals div{padding:4px 0;} .total-line{font-size:20px;font-weight:bold;color:#F5A623;}
+    .footer{margin-top:40px;font-size:12px;color:#999;text-align:center;}
+    @media print{body{padding:20px;}}
+  </style></head><body>
+    <div class="top">
+      <div><h1>Z</h1><div style="font-size:20px;font-weight:bold">${s.bizName}</div>
+        <div style="color:#666;font-size:14px;margin-top:6px">${s.bizAddress||''}</div>
+        <div style="color:#666;font-size:14px">${s.bizPhone||''}</div>
+        <div style="color:#666;font-size:14px">${s.bizEmail||''}</div>
+      </div>
+      <div style="text-align:right"><div class="inv-title">INVOICE</div>
+        <div style="color:#666;font-size:14px;margin-top:8px">#${inv.num}</div>
+        <div style="color:#666;font-size:14px">Date: ${inv.date}</div>
+      </div>
+    </div>
+    <div style="margin-bottom:20px;padding:14px;background:#f9f9f9;border-radius:8px">
+      <div style="font-size:12px;color:#999;margin-bottom:4px">BILL TO</div>
+      <div style="font-weight:bold;font-size:16px">${c?c.name:'Client'}</div>
+      <div style="color:#666">${c?c.phone:''}</div>
+      ${c&&c.email?`<div style="color:#666">${c.email}</div>`:''}
+    </div>
+    <table><thead><tr><th>Service / Description</th><th>Date</th><th style="text-align:right">Amount</th></tr></thead>
+    <tbody><tr><td>${inv.service||'Personal Training'}</td><td>${inv.date}</td><td style="text-align:right">$${inv.amount.toFixed(2)}</td></tr></tbody></table>
+    <div class="totals">
+      <div>Subtotal: $${inv.amount.toFixed(2)}</div>
+      <div>Amount Paid: $${(inv.paid||0).toFixed(2)}</div>
+      <div class="total-line">Balance Due: $${(inv.amount-(inv.paid||0)).toFixed(2)}</div>
+    </div>
+    <div class="footer"><p>Thank you for your business!</p>${s.bizWebsite?`<p>${s.bizWebsite}</p>`:''}</div>
+  </body></html>`);
+  w.document.close(); setTimeout(()=>w.print(),500);
+}
+
+// ===== TASKS =====
+function saveTask(){
+  const text=document.getElementById('taskText').value.trim();if(!text){showToast('Please enter a task!','error');return;}
+  DB.tasks.push({id:'T'+Date.now(),text,datetime:document.getElementById('taskDateTime').value,done:false});
+  saveDB();closeModal('addTaskModal');document.getElementById('taskText').value='';document.getElementById('taskDateTime').value='';
+  renderTasks();renderHome();showToast('Task saved! 📝','success');
+}
+
+function renderTasks(){
+  const open=DB.tasks.filter(t=>!t.done),closed=DB.tasks.filter(t=>t.done);
+  document.getElementById('openTasks').innerHTML=open.length
+    ?open.map(t=>`<div class="task-item">
+        <div class="task-info"><div class="task-text">${t.text}</div><div class="task-time">${t.datetime?fmtDT(t.datetime):''}</div></div>
+        <div class="task-actions">
+          <button class="btn-sm btn-paid" onclick="doneTask('${t.id}')">Done ✅</button>
+          <button class="btn-sm btn-action" onclick="followUpTask('${t.id}')">Follow Up</button>
+        </div>
+      </div>`).join('')
+    :'<div class="empty-state"><div class="emoji">📝</div><p>No open tasks. Tap + to add one!</p></div>';
+  document.getElementById('closedTasks').innerHTML=closed.length
+    ?closed.map(t=>`<div class="task-item" style="opacity:0.6">
+        <div class="task-info"><div class="task-text" style="text-decoration:line-through">${t.text}</div><div class="task-time">${t.datetime?fmtDT(t.datetime):''}</div></div>
+        <button class="btn-sm btn-secondary" onclick="reopenTask('${t.id}')">Reopen</button>
+      </div>`).join('')
+    :'<div class="empty-state"><div class="emoji">🎉</div><p>Completed tasks appear here.</p></div>';
+}
+
+function doneTask(id){const t=DB.tasks.find(t=>t.id===id);if(t){t.done=true;saveDB();renderTasks();renderHome();showToast('Task done! ✅','success');}}
+function reopenTask(id){const t=DB.tasks.find(t=>t.id===id);if(t){t.done=false;saveDB();renderTasks();showToast('Task reopened');}}
+function followUpTask(id){
+  const t=DB.tasks.find(t=>t.id===id);if(!t)return;
+  const dt=prompt('New follow-up date/time (YYYY-MM-DDTHH:MM):',new Date().toISOString().slice(0,16));
+  if(dt){t.datetime=dt;saveDB();renderTasks();showToast('Follow-up scheduled! 📅','success');}
+}
+
+// ===== SETTINGS =====
+function loadSettingsForm(){
+  const s=DB.settings;
+  document.getElementById('bizName').value=s.bizName||'';
+  document.getElementById('bizPhone').value=s.bizPhone||'';
+  document.getElementById('bizEmail').value=s.bizEmail||'';
+  document.getElementById('bizAddress').value=s.bizAddress||'';
+  document.getElementById('bizWebsite').value=s.bizWebsite||'';
+  document.getElementById('bizTaxId').value=s.bizTaxId||'';
+  document.getElementById('bizInvStart').value=s.nextInvNum||1001;
+}
+
+function saveSettings(){
+  DB.settings.bizName=document.getElementById('bizName').value||'Zohar Personal Trainer';
+  DB.settings.bizPhone=document.getElementById('bizPhone').value;
+  DB.settings.bizEmail=document.getElementById('bizEmail').value;
+  DB.settings.bizAddress=document.getElementById('bizAddress').value;
+  DB.settings.bizWebsite=document.getElementById('bizWebsite').value;
+  DB.settings.bizTaxId=document.getElementById('bizTaxId').value;
+  DB.settings.nextInvNum=parseInt(document.getElementById('bizInvStart').value)||1001;
+  saveDB();
+  document.getElementById('headerName').textContent=DB.settings.bizName.toUpperCase();
+  closeModal('settingsModal');showToast('Settings saved! ✅','success');
+}
+
+async function changePassword(){
+  const old=document.getElementById('oldPass').value,p1=document.getElementById('newPass1').value,p2=document.getElementById('newPass2').value;
+  if(!p1||p1!==p2){showToast('Passwords do not match!','error');return;}
+  if(p1.length<6){showToast('Password must be at least 6 chars','error');return;}
+  try{if(window.fbChangePass&&!isDemoMode){await window.fbChangePass(old,p1);}closeModal('changePassModal');showToast('Password updated! 🔑','success');}
+  catch(e){showToast('Error: '+(e.message||'Could not update password'),'error');}
+}
+
+// ===== HELPERS =====
+function populateClientSelects(){
+  ['sessionClient','invClient'].forEach(selId=>{
+    const sel=document.getElementById(selId);const cur=sel.value;
+    const extra=selId==='invClient'?'<option value="__new__">➕ Add New Client</option>':'';
+    sel.innerHTML='<option value="">Select client...</option>'+extra+DB.clients.map(c=>`<option value="${c.id}" ${c.id===cur?'selected':''}>${c.name} (${c.phone})</option>`).join('');
+  });
+}
+
+function fmtDT(dt){
+  if(!dt)return'';try{const d=new Date(dt);return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});}catch(e){return dt;}
+}
+
+// ===== INIT =====
+loadDB();
+// If Firebase isn't ready yet or fails, check localStorage for saved session
+setTimeout(()=>{
+  if(!window.firebaseReady||!window.firebaseUser){
+    if(DB.user){
+      document.getElementById('loginPage').classList.remove('open');
+      loadApp();
+    }
+  }
+},2000);
+
+// Register service worker
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
+</script>
+</body>
+</html>
