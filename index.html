@@ -148,6 +148,39 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
 .header-btn { background: none; border: none; color: var(--text); font-size: 22px; cursor: pointer; padding: 6px; }
 .avatar-btn { width: 34px; height: 34px; border-radius: 50%; background: var(--gold); border: none; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
 .theme-btn { width: 34px; height: 34px; border-radius: 50%; background: var(--card2); border: 1px solid var(--border); cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; }
+.bell-btn { position: relative; width: 34px; height: 34px; border-radius: 50%; background: var(--card2); border: 1px solid var(--border); cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; }
+.bell-badge { position: absolute; top: -4px; right: -4px; background: var(--red); color: #fff; border-radius: 50%; width: 16px; height: 16px; font-size: 10px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.notif-panel { display: none; position: fixed; top: calc(var(--head-h) + 6px); right: 8px; width: 300px; max-height: 400px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; z-index: 200; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+.notif-panel.open { display: block; }
+.notif-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.notif-title { font-size: 14px; font-weight: 800; color: var(--gold); }
+.notif-clear { font-size: 12px; color: var(--red); font-weight: 700; cursor: pointer; background: none; border: none; }
+.notif-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.notif-item:last-child { border-bottom: none; }
+.notif-text { flex: 1; font-size: 13px; font-weight: 600; color: var(--text); }
+.notif-time { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.notif-dismiss { background: none; border: none; color: var(--text2); font-size: 18px; cursor: pointer; }
+/* History toggle */
+.hist-toggle { display: flex; gap: 0; margin-bottom: 12px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+.hist-btn { flex: 1; padding: 9px; text-align: center; background: var(--card2); color: var(--text2); font-size: 13px; font-weight: 700; cursor: pointer; border: none; }
+.hist-btn.active { background: var(--gold); color: #000; }
+/* Calc tabs */
+.calc-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 14px; scrollbar-width: none; }
+.calc-tabs::-webkit-scrollbar { display: none; }
+.calc-tab { padding: 8px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--card2); color: var(--text2); font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+.calc-tab.active { background: var(--gold); color: #000; border-color: var(--gold); }
+.calc-result { background: var(--card2); border-radius: 12px; padding: 16px; margin-top: 14px; text-align: center; border: 1px solid var(--border); }
+.calc-num { font-size: 44px; font-weight: 900; color: var(--gold); }
+.calc-cat { font-size: 15px; font-weight: 800; margin-top: 4px; }
+.calc-desc { font-size: 13px; color: var(--text2); margin-top: 6px; font-weight: 600; }
+.save-to-client { margin-top: 14px; padding: 12px; background: var(--card); border-radius: 10px; border: 1px solid var(--border); }
+.hist-row { display: flex; align-items: flex-start; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); gap: 8px; }
+.hist-row:last-child { border-bottom: none; }
+.hist-row-data { flex: 1; }
+.hist-row-date { font-size: 12px; font-weight: 800; color: var(--gold); margin-bottom: 3px; }
+.hist-row-vals { font-size: 13px; color: var(--text); font-weight: 600; }
+.hist-row-notes { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.hist-row-actions { display: flex; gap: 4px; flex-shrink: 0; }
 
 /* ===== MAIN ===== */
 .main { padding-top: calc(var(--head-h) + 10px); padding-bottom: calc(var(--tab-h) + 10px); min-height: 100vh; }
@@ -370,10 +403,7 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
       <h2>Zohar Personal Trainer</h2>
       <p>Personnel Trainer Manager</p>
     </div>
-    <div class="auth-tabs">
-      <button class="auth-tab active" id="authTabLogin" onclick="setAuthTab('login')">Sign In</button>
-      <button class="auth-tab" id="authTabSignup" onclick="setAuthTab('signup')">Create Account</button>
-    </div>
+    <div style="background:rgba(245,166,35,0.1);border:1px solid var(--gold);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:var(--gold);font-weight:700;text-align:center">🔐 Invite-only access. Contact nirmaman@me.com to request access.</div>
     <div class="form-group">
       <label class="form-label">Email</label>
       <input type="email" class="form-input" id="loginEmail" placeholder="your@email.com" autocomplete="email"/>
@@ -381,10 +411,6 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
     <div class="form-group">
       <label class="form-label">Password</label>
       <input type="password" class="form-input" id="loginPass" placeholder="Password" autocomplete="current-password"/>
-    </div>
-    <div class="form-group" id="confirmGroup" style="display:none">
-      <label class="form-label">Confirm Password</label>
-      <input type="password" class="form-input" id="confirmPass" placeholder="Confirm password"/>
     </div>
     <div class="remember-row">
       <input type="checkbox" id="rememberMe" checked/>
@@ -402,7 +428,8 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
 <div class="drawer" id="drawer">
   <div class="drawer-title">⚙️ Menu</div>
   <div class="drawer-item" onclick="closeDrawer();openM('settingsModal')">🏢 Business Settings</div>
-  <div class="drawer-item" onclick="closeDrawer();openM('bmiModal')">📐 BMI Calculator</div>
+  <div class="drawer-item" onclick="closeDrawer();openM('calculatorsModal')">📐 Calculators</div>
+  <div class="drawer-item" id="inviteUserDrawer" style="display:none" onclick="closeDrawer();openM('inviteModal')">✉️ Invite User</div>
   <div class="drawer-item" onclick="closeDrawer();openM('addClientModal')">👤 Add Client</div>
   <div class="drawer-item" onclick="closeDrawer();openM('addSessionModal')">📅 Add Session</div>
   <div class="drawer-item" onclick="closeDrawer();openM('addInvoiceModal')">💸 New Invoice</div>
@@ -419,7 +446,16 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
   </div>
   <div class="header-right">
     <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle day/night">🌙</button>
+    <button class="bell-btn" id="bellBtn" onclick="toggleNotifPanel()" title="Notifications">🔔<span class="bell-badge" id="bellBadge" style="display:none">0</span></button>
     <button class="avatar-btn" onclick="togglePM()">👤</button>
+  </div>
+  <!-- Notification Panel -->
+  <div class="notif-panel" id="notifPanel">
+    <div class="notif-header">
+      <span class="notif-title">🔔 Notifications</span>
+      <button class="notif-clear" onclick="clearAllNotifs()">Clear All</button>
+    </div>
+    <div id="notifList"><div style="padding:20px;text-align:center;color:var(--text2);font-size:13px">No notifications</div></div>
   </div>
   <div class="profile-menu" id="profileMenu">
     <div class="pm-email" id="pmEmail">user@email.com</div>
@@ -593,6 +629,7 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
     <div class="modal-header"><div class="modal-title" id="profName">Client</div><button class="modal-close" onclick="closeM('clientProfileModal')">✕</button></div>
     <div class="profile-tabs">
       <button class="profile-tab active" id="ptS" onclick="switchProfTab('schedule',this)">Schedule</button>
+      <button class="profile-tab" id="ptH" onclick="switchProfTab('history',this)">📋 History</button>
       <button class="profile-tab" id="ptP" onclick="switchProfTab('progress',this)">Progress</button>
       <button class="profile-tab" id="ptI" onclick="switchProfTab('info',this)">Profile</button>
     </div>
@@ -677,20 +714,116 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
   </div>
 </div>
 
-<!-- BMI CALCULATOR -->
-<div class="modal-overlay" id="bmiModal">
+<!-- CALCULATORS HUB -->
+<div class="modal-overlay" id="calculatorsModal">
   <div class="modal">
-    <div class="modal-header"><div class="modal-title">📐 BMI Calculator</div><button class="modal-close" onclick="closeM('bmiModal')">✕</button></div>
-    <div class="form-group"><label class="form-label">Weight (lbs)</label><input type="number" class="form-input" id="bmiWeight" placeholder="185" oninput="calcBMI()"/></div>
-    <div class="form-group"><label class="form-label">Height (inches)</label><input type="number" class="form-input" id="bmiHeight" placeholder="70" oninput="calcBMI()"/></div>
-    <div id="bmiResult" style="display:none">
-      <div class="bmi-result">
-        <div class="bmi-num" id="bmiNum">--</div>
-        <div class="bmi-cat" id="bmiCat"></div>
-        <div class="bmi-desc" id="bmiDesc"></div>
-      </div>
+    <div class="modal-header"><div class="modal-title">📐 Calculators</div><button class="modal-close" onclick="closeM('calculatorsModal')">✕</button></div>
+    <div class="calc-tabs">
+      <div class="calc-tab active" onclick="switchCalc('bmi',this)">⚖️ BMI</div>
+      <div class="calc-tab" onclick="switchCalc('bodyfat',this)">🔥 Body Fat</div>
+      <div class="calc-tab" onclick="switchCalc('bmr',this)">🍎 BMR/TDEE</div>
+      <div class="calc-tab" onclick="switchCalc('whr',this)">📏 Waist-Hip</div>
+      <div class="calc-tab" onclick="switchCalc('orm',this)">💪 1RM</div>
     </div>
-    <button class="btn-secondary" onclick="closeM('bmiModal')" style="margin-top:14px">Close</button>
+    <!-- BMI -->
+    <div id="calc-bmi">
+      <div class="form-group"><label class="form-label">Weight (lbs)</label><input type="number" class="form-input" id="cbmiW" placeholder="185" oninput="runCalc('bmi')"/></div>
+      <div style="display:flex;gap:8px">
+        <div class="form-group" style="flex:1"><label class="form-label">Height (ft)</label><input type="number" class="form-input" id="cbmiFt" placeholder="5" oninput="runCalc('bmi')"/></div>
+        <div class="form-group" style="flex:1"><label class="form-label">Height (in)</label><input type="number" class="form-input" id="cbmiIn" placeholder="10" oninput="runCalc('bmi')"/></div>
+      </div>
+      <div class="form-group"><label class="form-label">Age</label><input type="number" class="form-input" id="cbmiAge" placeholder="30" oninput="runCalc('bmi')"/></div>
+      <div class="form-group"><label class="form-label">Gender</label><select class="form-select" id="cbmiGender" onchange="runCalc('bmi')"><option value="male">Male</option><option value="female">Female</option></select></div>
+      <div id="calcResult-bmi"></div>
+    </div>
+    <!-- Body Fat -->
+    <div id="calc-bodyfat" style="display:none">
+      <div class="form-group"><label class="form-label">Gender</label><select class="form-select" id="cbfGender" onchange="runCalc('bodyfat')"><option value="male">Male</option><option value="female">Female</option></select></div>
+      <div class="form-group"><label class="form-label">Age</label><input type="number" class="form-input" id="cbfAge" placeholder="30" oninput="runCalc('bodyfat')"/></div>
+      <div class="form-group"><label class="form-label">Weight (lbs)</label><input type="number" class="form-input" id="cbfW" placeholder="185" oninput="runCalc('bodyfat')"/></div>
+      <div class="form-group"><label class="form-label">Waist (inches)</label><input type="number" class="form-input" id="cbfWaist" placeholder="34" oninput="runCalc('bodyfat')"/></div>
+      <div class="form-group"><label class="form-label">Neck (inches)</label><input type="number" class="form-input" id="cbfNeck" placeholder="16" oninput="runCalc('bodyfat')"/></div>
+      <div class="form-group" id="cbfHipGroup"><label class="form-label">Hip (inches) — women only</label><input type="number" class="form-input" id="cbfHip" placeholder="40" oninput="runCalc('bodyfat')"/></div>
+      <div id="calcResult-bodyfat"></div>
+    </div>
+    <!-- BMR/TDEE -->
+    <div id="calc-bmr" style="display:none">
+      <div class="form-group"><label class="form-label">Weight (lbs)</label><input type="number" class="form-input" id="cbmrW" placeholder="185" oninput="runCalc('bmr')"/></div>
+      <div class="form-group"><label class="form-label">Height (inches)</label><input type="number" class="form-input" id="cbmrH" placeholder="70" oninput="runCalc('bmr')"/></div>
+      <div class="form-group"><label class="form-label">Age</label><input type="number" class="form-input" id="cbmrAge" placeholder="30" oninput="runCalc('bmr')"/></div>
+      <div class="form-group"><label class="form-label">Gender</label><select class="form-select" id="cbmrGender" onchange="runCalc('bmr')"><option value="male">Male</option><option value="female">Female</option></select></div>
+      <div class="form-group"><label class="form-label">Activity Level</label><select class="form-select" id="cbmrActivity" onchange="runCalc('bmr')"><option value="1.2">Sedentary (little/no exercise)</option><option value="1.375">Lightly Active (1-3 days/week)</option><option value="1.55">Moderately Active (3-5 days/week)</option><option value="1.725">Very Active (6-7 days/week)</option><option value="1.9">Extra Active (physical job)</option></select></div>
+      <div id="calcResult-bmr"></div>
+    </div>
+    <!-- Waist-Hip Ratio -->
+    <div id="calc-whr" style="display:none">
+      <div class="form-group"><label class="form-label">Waist (inches)</label><input type="number" class="form-input" id="cwhrWaist" placeholder="34" oninput="runCalc('whr')"/></div>
+      <div class="form-group"><label class="form-label">Hip (inches)</label><input type="number" class="form-input" id="cwhrHip" placeholder="40" oninput="runCalc('whr')"/></div>
+      <div class="form-group"><label class="form-label">Gender</label><select class="form-select" id="cwhrGender" onchange="runCalc('whr')"><option value="male">Male</option><option value="female">Female</option></select></div>
+      <div id="calcResult-whr"></div>
+    </div>
+    <!-- 1RM -->
+    <div id="calc-orm" style="display:none">
+      <div class="form-group"><label class="form-label">Weight Lifted (lbs)</label><input type="number" class="form-input" id="cormW" placeholder="200" oninput="runCalc('orm')"/></div>
+      <div class="form-group"><label class="form-label">Reps Performed</label><input type="number" class="form-input" id="cormR" placeholder="5" min="1" max="36" oninput="runCalc('orm')"/></div>
+      <div id="calcResult-orm"></div>
+    </div>
+  </div>
+</div>
+
+<!-- INVITE USER MODAL -->
+<div class="modal-overlay" id="inviteModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">✉️ Invite User</div><button class="modal-close" onclick="closeM('inviteModal')">✕</button></div>
+    <p style="color:var(--text2);font-size:14px;margin-bottom:14px;font-weight:600">Enter the email address to allow access to this app:</p>
+    <div class="form-group"><label class="form-label">Email Address</label><input type="email" class="form-input" id="inviteEmail" placeholder="user@email.com"/></div>
+    <button class="btn-primary" onclick="sendInvite()">✉️ Grant Access</button>
+  </div>
+</div>
+
+<!-- ADD MEASUREMENTS MODAL -->
+<div class="modal-overlay" id="addMeasureModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">📏 Add Measurements</div><button class="modal-close" onclick="closeM('addMeasureModal')">✕</button></div>
+    <div class="form-group"><label class="form-label">Date</label><input type="date" class="form-input" id="mDate"/></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="form-group"><label class="form-label">Bust (in)</label><input type="number" class="form-input" id="mBust" step="0.1" placeholder="36"/></div>
+      <div class="form-group"><label class="form-label">Under Bust (in)</label><input type="number" class="form-input" id="mUnderBust" step="0.1" placeholder="30"/></div>
+      <div class="form-group"><label class="form-label">Waist (in)</label><input type="number" class="form-input" id="mWaist" step="0.1" placeholder="28"/></div>
+      <div class="form-group"><label class="form-label">Hip (in)</label><input type="number" class="form-input" id="mHip" step="0.1" placeholder="38"/></div>
+      <div class="form-group"><label class="form-label">Wrist (in)</label><input type="number" class="form-input" id="mWrist" step="0.1" placeholder="6"/></div>
+    </div>
+    <div class="form-group"><label class="form-label">Notes (optional)</label><input type="text" class="form-input" id="mNotes" placeholder="Post-workout, morning, etc."/></div>
+    <button class="btn-primary" onclick="saveMeasure()">💾 Save Measurements</button>
+  </div>
+</div>
+
+<!-- EDIT MEASUREMENTS MODAL -->
+<div class="modal-overlay" id="editMeasureModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">✏️ Edit Measurements</div><button class="modal-close" onclick="closeM('editMeasureModal')">✕</button></div>
+    <input type="hidden" id="emIdx"/>
+    <div class="form-group"><label class="form-label">Date</label><input type="date" class="form-input" id="emDate"/></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="form-group"><label class="form-label">Bust (in)</label><input type="number" class="form-input" id="emBust" step="0.1"/></div>
+      <div class="form-group"><label class="form-label">Under Bust (in)</label><input type="number" class="form-input" id="emUnderBust" step="0.1"/></div>
+      <div class="form-group"><label class="form-label">Waist (in)</label><input type="number" class="form-input" id="emWaist" step="0.1"/></div>
+      <div class="form-group"><label class="form-label">Hip (in)</label><input type="number" class="form-input" id="emHip" step="0.1"/></div>
+      <div class="form-group"><label class="form-label">Wrist (in)</label><input type="number" class="form-input" id="emWrist" step="0.1"/></div>
+    </div>
+    <div class="form-group"><label class="form-label">Notes</label><input type="text" class="form-input" id="emNotes"/></div>
+    <button class="btn-primary" onclick="saveEditMeasure()">💾 Update</button>
+    <button class="btn-danger" onclick="deleteMeasure()">🗑️ Delete Entry</button>
+  </div>
+</div>
+
+<!-- SAVE CALC TO CLIENT -->
+<div class="modal-overlay" id="saveCalcModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">💾 Save to Client</div><button class="modal-close" onclick="closeM('saveCalcModal')">✕</button></div>
+    <p style="color:var(--text2);font-size:14px;margin-bottom:14px;font-weight:600">Choose a client to save this result to their progress history:</p>
+    <div class="form-group"><label class="form-label">Select Client</label><select class="form-select" id="calcSaveClient"></select></div>
+    <button class="btn-primary" onclick="doSaveCalcToClient()">💾 Save to Client History</button>
   </div>
 </div>
 
@@ -730,39 +863,29 @@ function applyTheme(t) {
 }
 function toggleTheme() { applyTheme(DB.theme==='dark'?'light':'dark'); }
 
-// ===== AUTH =====
-function setAuthTab(t) {
-  authMode=t;
-  document.getElementById('authTabLogin').classList.toggle('active',t==='login');
-  document.getElementById('authTabSignup').classList.toggle('active',t==='signup');
-  document.getElementById('authBtn').textContent = t==='login'?'Sign In':'Create Account';
-  document.getElementById('confirmGroup').style.display = t==='signup'?'block':'none';
-  document.getElementById('loginErr').style.display='none';
-}
+// ===== ACCESS CONTROL =====
+const ALLOWED_EMAILS = ['nirmaman@me.com', 'zoharmaman@me.com'];
+const ADMIN_EMAIL = 'nirmaman@me.com';
+function isAllowed(email) { return ALLOWED_EMAILS.includes(email.toLowerCase()); }
+function isAdmin(email) { return email&&email.toLowerCase()===ADMIN_EMAIL.toLowerCase(); }
 
+// ===== AUTH =====
 async function doAuth() {
   const email=document.getElementById('loginEmail').value.trim();
   const pass=document.getElementById('loginPass').value;
   if(!email||!pass){showErr('Please enter email and password.');return;}
+  // Access control check
+  if(!isAllowed(email)){showErr('Access restricted. Please contact nirmaman@me.com for an invitation.');return;}
   const btn=document.getElementById('authBtn');
   btn.innerHTML='<span class="spinner"></span>Please wait...';btn.disabled=true;
   try {
-    if(authMode==='signup') {
-      const confirm=document.getElementById('confirmPass').value;
-      if(pass!==confirm){showErr('Passwords do not match.');return;}
-      if(pass.length<6){showErr('Password must be at least 6 characters.');return;}
-      if(window.fbSignUp) { await window.fbSignUp(email,pass); }
-      else { fallbackLogin(email); }
-    } else {
-      if(window.fbSignIn) { await window.fbSignIn(email,pass); }
-      else { fallbackLogin(email); }
-    }
-    // onAuthStateChanged handles the rest for Firebase
+    if(window.fbSignIn) { await window.fbSignIn(email,pass); }
+    else { fallbackLogin(email); }
   } catch(e) {
-    const msgs={'auth/user-not-found':'No account with this email.','auth/wrong-password':'Incorrect password.','auth/email-already-in-use':'An account with this email already exists.','auth/invalid-email':'Invalid email address.','auth/weak-password':'Password too weak (min 6 chars).','auth/too-many-requests':'Too many attempts. Wait a moment.','auth/invalid-credential':'Incorrect email or password.'};
+    const msgs={'auth/user-not-found':'No account with this email. Contact admin.','auth/wrong-password':'Incorrect password.','auth/invalid-email':'Invalid email address.','auth/too-many-requests':'Too many attempts. Wait a moment.','auth/invalid-credential':'Incorrect email or password.'};
     showErr(msgs[e.code]||'Error: '+(e.message||'Unknown'));
   } finally {
-    btn.textContent=authMode==='login'?'Sign In':'Create Account';btn.disabled=false;
+    btn.textContent='Sign In';btn.disabled=false;
   }
 }
 
@@ -855,6 +978,14 @@ function loadApp() {
   applyTheme(DB.theme||'dark');
   document.getElementById('hName').textContent=DB.settings.bizName.toUpperCase();
   document.getElementById('pmEmail').textContent=DB.user?.email||'';
+  // Show admin-only features
+  const adminEl=document.getElementById('inviteUserDrawer');
+  if(adminEl)adminEl.style.display=isAdmin(DB.user?.email||'')?'flex':'none';
+  // Init notifications
+  loadNotifs();renderBell();
+  setInterval(checkTaskNotifs,60000);
+  // Request notification permission
+  if('Notification'in window&&Notification.permission==='default'){Notification.requestPermission();}
   loadSettingsForm();
   renderHome();
   renderDayBar();
@@ -1010,6 +1141,14 @@ function openProf(id) {
 function switchProfTab(tab, btn) {
   if(btn){document.querySelectorAll('.profile-tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');}
   const c=DB.clients.find(x=>x.id===currentProfileId),co=document.getElementById('profContent');
+  if(tab==='history'){
+    histTab='weight';
+    co.innerHTML=`<div class="hist-toggle"><button class="hist-btn active" onclick="switchHistTab('weight',this)">⚖️ Weight Log</button><button class="hist-btn" onclick="switchHistTab('measurements',this)">📏 Measurements</button></div><div id="histContent"></div>`;
+    // Override profContent rendering to histContent
+    const orig=document.getElementById;
+    renderHistTabTo('histContent');
+    return;
+  }
   if(tab==='schedule') {
     const ss=DB.sessions.filter(s=>s.clientId===currentProfileId).sort((a,b)=>b.date.localeCompare(a.date));
     co.innerHTML=ss.length?ss.map(s=>`<div class="session-item"><div class="session-time">${s.date}<br><small>${s.time}</small></div><div class="session-client"><div class="name">${s.bodyParts&&s.bodyParts.length?s.bodyParts.join(', '):'General'}</div><div class="sub">${s.notes||''}</div></div><span class="btn-sm ${s.paid?'btn-paid':'btn-unpaid'}">${s.paid?'Paid ✅':'Unpaid ❌'}</span></div>`).join(''):'<div class="empty"><div class="ei">📅</div><p>No sessions yet.</p></div>';
@@ -1310,6 +1449,245 @@ function populateSelects(){
   });
 }
 function fmtDT(dt){if(!dt)return'';try{const d=new Date(dt);return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});}catch(e){return dt;}}
+
+// ===== INVITE USER (admin only) =====
+async function sendInvite() {
+  const email=document.getElementById('inviteEmail').value.trim();
+  if(!email){toast('Enter an email address','err');return;}
+  // Add to allowed list in Firebase
+  if(window._fbFirebase&&window._fbUser) {
+    try {
+      const {addDoc,collection,serverTimestamp}=window._fbFns;
+      await addDoc(collection(window._fbFS,'ptm_allowed_users'),{email:email.toLowerCase(),invitedBy:DB.user.email,createdAt:serverTimestamp()});
+      toast('✉️ Access granted to '+email,'ok');
+    } catch(e){toast('Error: '+e.message,'err');return;}
+  }
+  closeM('inviteModal');document.getElementById('inviteEmail').value='';
+}
+
+// ===== NOTIFICATIONS / BELL =====
+let notifs = [];
+let notifEnabled = true;
+function loadNotifs() {
+  try { notifs=JSON.parse(localStorage.getItem('ptm_notifs')||'[]'); notifEnabled=localStorage.getItem('ptm_notif_enabled')!=='false'; } catch(e){}
+}
+function saveNotifs() { localStorage.setItem('ptm_notifs',JSON.stringify(notifs)); localStorage.setItem('ptm_notif_enabled',notifEnabled?'true':'false'); }
+function addNotif(text,dt) { notifs.unshift({id:'N'+Date.now(),text,datetime:dt||new Date().toISOString(),read:false}); if(notifs.length>50)notifs=notifs.slice(0,50); saveNotifs(); renderBell(); }
+function renderBell() {
+  const unread=notifs.filter(n=>!n.read).length;
+  const badge=document.getElementById('bellBadge');
+  if(badge){badge.style.display=unread>0?'flex':'none';badge.textContent=unread>9?'9+':unread;}
+  const list=document.getElementById('notifList');
+  if(!list)return;
+  if(!notifs.length){list.innerHTML='<div style="padding:20px;text-align:center;color:var(--text2);font-size:13px">No notifications</div>';return;}
+  list.innerHTML=notifs.map(n=>`<div class="notif-item">
+    <div class="notif-text"><div>${n.text}</div><div class="notif-time">${fmtDT(n.datetime)}</div></div>
+    <button class="notif-dismiss" onclick="dismissNotif('${n.id}')">×</button>
+  </div>`).join('');
+}
+function toggleNotifPanel(){document.getElementById('notifPanel').classList.toggle('open');notifs.forEach(n=>n.read=true);saveNotifs();renderBell();}
+function clearAllNotifs(){notifs=[];saveNotifs();renderBell();document.getElementById('notifPanel').classList.remove('open');}
+function dismissNotif(id){notifs=notifs.filter(n=>n.id!==id);saveNotifs();renderBell();}
+// Check tasks every minute for due notifications
+function checkTaskNotifs(){
+  if(!notifEnabled)return;
+  const now=new Date();
+  DB.tasks.forEach(t=>{
+    if(!t.done&&t.datetime){
+      const dt=new Date(t.datetime);
+      const diff=dt-now;
+      if(diff>=-60000&&diff<=0){
+        const alreadyNotified=notifs.some(n=>n.text===t.text&&Math.abs(new Date(n.datetime)-dt)<120000);
+        if(!alreadyNotified){addNotif('⏰ Task due: '+t.text,new Date().toISOString());if(notifEnabled&&'Notification'in window&&Notification.permission==='granted'){new Notification('Task Due',{body:t.text,icon:'/icons/icon-192.png'});}}
+      }
+    }
+  });
+}
+document.addEventListener('click',e=>{if(!e.target.closest('.bell-btn')&&!e.target.closest('.notif-panel'))document.getElementById('notifPanel').classList.remove('open');});
+
+// ===== CLIENT HISTORY TAB =====
+let histTab='weight';
+function switchHistTab(t,btn){
+  histTab=t;
+  document.querySelectorAll('.hist-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  renderHistTab();
+}
+function renderHistTabTo(targetId){
+  const c=DB.clients.find(x=>x.id===currentProfileId);
+  const container=document.getElementById(targetId||'histContent');
+  if(!c||!container)return;
+  if(histTab==='weight'){
+    const prog=c.progress?[...c.progress].filter(p=>!p.type||p.type!=='calculator').reverse():[];
+    container.innerHTML=`<button class="btn-primary" style="margin-bottom:12px" onclick="document.getElementById('pgDate').value=today();openM('addProgModal')">➕ Add Weight Entry</button>`+(prog.length?prog.map((p,ri)=>{const ri2=(c.progress||[]).length-1-ri;return`<div class="hist-row"><div class="hist-row-data"><div class="hist-row-date">${p.date}</div><div class="hist-row-vals">${p.weight?p.weight+' lbs':''} ${p.bmi?'| BMI: '+p.bmi:''} ${p.fat?'| Fat: '+p.fat+'%':''}</div>${p.notes?`<div class="hist-row-notes">${p.notes}</div>`:''}</div><div class="hist-row-actions"><button class="btn-sm btn-gold" onclick="editProg(${ri2})">✏️</button><button class="btn-sm btn-unpaid" onclick="delProgEntry(${ri2})">🗑️</button></div></div>`}).join(''):'<div class="empty"><div class="ei">⚖️</div><p>No weight entries yet.</p></div>');
+  } else {
+    const meas=c.measurements?[...c.measurements].reverse():[];
+    container.innerHTML=`<button class="btn-primary" style="margin-bottom:12px" onclick="document.getElementById('mDate').value=today();openM('addMeasureModal')">➕ Add Measurements</button>`+(meas.length?meas.map((m,ri)=>{const ri2=(c.measurements||[]).length-1-ri;return`<div class="hist-row"><div class="hist-row-data"><div class="hist-row-date">${m.date}</div><div class="hist-row-vals">${m.bust?'Bust: '+m.bust+'"':''} ${m.underBust?'| UB: '+m.underBust+'"':''} ${m.waist?'| Waist: '+m.waist+'"':''} ${m.hip?'| Hip: '+m.hip+'"':''} ${m.wrist?'| Wrist: '+m.wrist+'"':''}</div>${m.notes?`<div class="hist-row-notes">${m.notes}</div>`:''}</div><div class="hist-row-actions"><button class="btn-sm btn-gold" onclick="editMeasure(${ri2})">✏️</button><button class="btn-sm btn-unpaid" onclick="deleteMeasureAt(${ri2})">🗑️</button></div></div>`}).join(''):'<div class="empty"><div class="ei">📏</div><p>No measurements yet.</p></div>');
+  }
+}
+function switchHistTab(t,btn){histTab=t;document.querySelectorAll('.hist-btn').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');renderHistTabTo('histContent');}
+
+function renderHistTab(){
+  const c=DB.clients.find(x=>x.id===currentProfileId);
+  const content=document.getElementById('profContent');
+  if(!c)return;
+  if(histTab==='weight'){
+    const prog=c.progress?[...c.progress].reverse():[];
+    content.innerHTML=`<button class="btn-primary" style="margin-bottom:12px" onclick="openM('addProgModal')">➕ Add Weight Entry</button>
+      ${prog.length?prog.map((p,ri)=>{const ri2=c.progress.length-1-ri;return`<div class="hist-row">
+        <div class="hist-row-data">
+          <div class="hist-row-date">${p.date}</div>
+          <div class="hist-row-vals">${p.weight?p.weight+' lbs':''} ${p.bmi?'| BMI: '+p.bmi:''} ${p.fat?'| Fat: '+p.fat+'%':''} ${p.muscle?'| Muscle: '+p.muscle+'%':''}</div>
+          ${p.notes?`<div class="hist-row-notes">${p.notes}</div>`:''}
+        </div>
+        <div class="hist-row-actions">
+          <button class="btn-sm btn-gold" onclick="editProg(${ri2})">✏️</button>
+          <button class="btn-sm btn-unpaid" onclick="delProgEntry(${ri2})">🗑️</button>
+        </div>
+      </div>`}).join(''):'<div class="empty"><div class="ei">⚖️</div><p>No weight entries yet.</p></div>'}`;
+  } else {
+    const meas=c.measurements?[...c.measurements].reverse():[];
+    content.innerHTML=`<button class="btn-primary" style="margin-bottom:12px" onclick="document.getElementById('mDate').value=today();openM('addMeasureModal')">➕ Add Measurements</button>
+      ${meas.length?meas.map((m,ri)=>{const ri2=c.measurements.length-1-ri;return`<div class="hist-row">
+        <div class="hist-row-data">
+          <div class="hist-row-date">${m.date}</div>
+          <div class="hist-row-vals">${m.bust?'Bust: '+m.bust+'"':''} ${m.underBust?'| UB: '+m.underBust+'"':''} ${m.waist?'| Waist: '+m.waist+'"':''} ${m.hip?'| Hip: '+m.hip+'"':''} ${m.wrist?'| Wrist: '+m.wrist+'"':''}</div>
+          ${m.notes?`<div class="hist-row-notes">${m.notes}</div>`:''}
+        </div>
+        <div class="hist-row-actions">
+          <button class="btn-sm btn-gold" onclick="editMeasure(${ri2})">✏️</button>
+          <button class="btn-sm btn-unpaid" onclick="deleteMeasureAt(${ri2})">🗑️</button>
+        </div>
+      </div>`}).join(''):'<div class="empty"><div class="ei">📏</div><p>No measurements yet.</p></div>'}`;
+  }
+}
+
+// ===== BODY MEASUREMENTS =====
+async function saveMeasure(){
+  const c=DB.clients.find(x=>x.id===currentProfileId);if(!c)return;
+  if(!c.measurements)c.measurements=[];
+  const entry={date:document.getElementById('mDate').value||today(),bust:parseFloat(document.getElementById('mBust').value)||null,underBust:parseFloat(document.getElementById('mUnderBust').value)||null,waist:parseFloat(document.getElementById('mWaist').value)||null,hip:parseFloat(document.getElementById('mHip').value)||null,wrist:parseFloat(document.getElementById('mWrist').value)||null,notes:document.getElementById('mNotes').value};
+  c.measurements.push(entry);
+  saveDB();closeM('addMeasureModal');
+  ['mBust','mUnderBust','mWaist','mHip','mWrist','mNotes'].forEach(id=>document.getElementById(id).value='');
+  renderHistTab();toast('Measurements saved! 📏','ok');
+  await syncToFirebase('ptm_clients',c);
+}
+function editMeasure(idx){
+  const c=DB.clients.find(x=>x.id===currentProfileId);if(!c||!c.measurements[idx])return;
+  const m=c.measurements[idx];
+  document.getElementById('emIdx').value=idx;
+  document.getElementById('emDate').value=m.date||'';
+  document.getElementById('emBust').value=m.bust||'';
+  document.getElementById('emUnderBust').value=m.underBust||'';
+  document.getElementById('emWaist').value=m.waist||'';
+  document.getElementById('emHip').value=m.hip||'';
+  document.getElementById('emWrist').value=m.wrist||'';
+  document.getElementById('emNotes').value=m.notes||'';
+  openM('editMeasureModal');
+}
+async function saveEditMeasure(){
+  const c=DB.clients.find(x=>x.id===currentProfileId);if(!c)return;
+  const idx=parseInt(document.getElementById('emIdx').value);
+  c.measurements[idx]={date:document.getElementById('emDate').value,bust:parseFloat(document.getElementById('emBust').value)||null,underBust:parseFloat(document.getElementById('emUnderBust').value)||null,waist:parseFloat(document.getElementById('emWaist').value)||null,hip:parseFloat(document.getElementById('emHip').value)||null,wrist:parseFloat(document.getElementById('emWrist').value)||null,notes:document.getElementById('emNotes').value};
+  saveDB();closeM('editMeasureModal');renderHistTab();toast('Updated ✅','ok');
+  await syncToFirebase('ptm_clients',c);
+}
+function deleteMeasure(){
+  if(!confirm('Delete this measurement entry?'))return;
+  const c=DB.clients.find(x=>x.id===currentProfileId);if(!c)return;
+  const idx=parseInt(document.getElementById('emIdx').value);
+  c.measurements.splice(idx,1);saveDB();closeM('editMeasureModal');renderHistTab();toast('Deleted');
+  syncToFirebase('ptm_clients',c);
+}
+function deleteMeasureAt(idx){
+  if(!confirm('Delete this measurement entry?'))return;
+  const c=DB.clients.find(x=>x.id===currentProfileId);if(!c)return;
+  c.measurements.splice(idx,1);saveDB();renderHistTab();toast('Deleted');
+  syncToFirebase('ptm_clients',c);
+}
+function delProgEntry(idx){
+  if(!confirm('Delete this weight entry?'))return;
+  const c=DB.clients.find(x=>x.id===currentProfileId);if(!c)return;
+  c.progress.splice(idx,1);saveDB();renderHistTab();toast('Deleted');
+  syncToFirebase('ptm_clients',c);
+}
+
+// ===== CALCULATORS =====
+let calcType='bmi';let lastCalcResult={};
+function switchCalc(type,btn){
+  calcType=type;
+  document.querySelectorAll('.calc-tab').forEach(t=>t.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  ['bmi','bodyfat','bmr','whr','orm'].forEach(t=>document.getElementById('calc-'+t).style.display=t===type?'block':'none');
+}
+function runCalc(type){
+  const el=id=>document.getElementById(id);
+  let result=null,html='';
+  if(type==='bmi'){
+    const w=parseFloat(el('cbmiW').value),ft=parseFloat(el('cbmiFt').value)||0,ins=parseFloat(el('cbmiIn').value)||0;
+    const h=(ft*12)+ins;const age=parseInt(el('cbmiAge').value)||30;
+    if(!w||!h)return;
+    const bmi=Math.round((w/(h*h))*703*10)/10;
+    let cat,col,desc;
+    if(bmi<18.5){cat='Underweight';col='#2196F3';desc='BMI below 18.5';}
+    else if(bmi<25){cat='Normal Weight ✅';col='#4CAF50';desc='Healthy range (18.5-24.9)';}
+    else if(bmi<30){cat='Overweight';col='#FF9800';desc='BMI 25-29.9';}
+    else{cat='Obese';col='#f44336';desc='BMI 30+';}
+    if(age<20)desc+=' (Note: Use BMI-for-age chart for under 20)';
+    result={type:'bmi',bmi,category:cat,age};
+    html=`<div class="calc-result"><div class="calc-num">${bmi}</div><div class="calc-cat" style="color:${col}">${cat}</div><div class="calc-desc">${desc}</div></div>`;
+  } else if(type==='bodyfat'){
+    const gender=el('cbfGender').value,w=parseFloat(el('cbfW').value),waist=parseFloat(el('cbfWaist').value),neck=parseFloat(el('cbfNeck').value),hip=parseFloat(el('cbfHip').value);
+    if(!w||!waist||!neck)return;
+    let bf;
+    if(gender==='male'&&waist>neck){bf=Math.round((86.01*Math.log10(waist-neck)-70.041*Math.log10(72)+36.76)*10)/10;}
+    else if(gender==='female'&&hip){bf=Math.round((163.205*Math.log10(waist+hip-neck)-97.684*Math.log10(72)-78.387)*10)/10;}
+    else return;
+    let cat,col;
+    if(gender==='male'){if(bf<6){cat='Essential Fat';col='#2196F3';}else if(bf<14){cat='Athletes';col='#4CAF50';}else if(bf<18){cat='Fitness';col='#8BC34A';}else if(bf<25){cat='Average';col='#FF9800';}else{cat='Obese';col='#f44336';}}
+    else{if(bf<14){cat='Essential Fat';col='#2196F3';}else if(bf<21){cat='Athletes';col='#4CAF50';}else if(bf<25){cat='Fitness';col='#8BC34A';}else if(bf<32){cat='Average';col='#FF9800';}else{cat='Obese';col='#f44336';}}
+    result={type:'bodyfat',bodyFat:bf,category:cat};
+    html=`<div class="calc-result"><div class="calc-num">${bf}%</div><div class="calc-cat" style="color:${col}">${cat}</div><div class="calc-desc">Body Fat Percentage (US Navy Formula)</div></div>`;
+    document.getElementById('cbfHipGroup').style.display=gender==='female'?'block':'none';
+  } else if(type==='bmr'){
+    const w=parseFloat(el('cbmrW').value),h=parseFloat(el('cbmrH').value),age=parseInt(el('cbmrAge').value),gender=el('cbmrGender').value,act=parseFloat(el('cbmrActivity').value);
+    if(!w||!h||!age)return;
+    const wkg=w*0.453592,hcm=h*2.54;
+    let bmr=gender==='male'?(10*wkg)+(6.25*hcm)-(5*age)+5:(10*wkg)+(6.25*hcm)-(5*age)-161;
+    bmr=Math.round(bmr);const tdee=Math.round(bmr*act);
+    result={type:'bmr',bmr,tdee};
+    html=`<div class="calc-result"><div class="calc-num">${bmr}</div><div class="calc-cat" style="color:var(--gold)">calories/day (BMR)</div><div class="calc-desc">TDEE (maintenance): ${tdee} cal/day<br><small>Mifflin-St Jeor Formula</small></div></div>`;
+  } else if(type==='whr'){
+    const waist=parseFloat(el('cwhrWaist').value),hip=parseFloat(el('cwhrHip').value),gender=el('cwhrGender').value;
+    if(!waist||!hip)return;
+    const ratio=Math.round((waist/hip)*100)/100;
+    let cat,col;
+    if(gender==='male'){if(ratio<0.9){cat='Low Risk ✅';col='#4CAF50';}else if(ratio<1.0){cat='Moderate Risk';col='#FF9800';}else{cat='High Risk';col='#f44336';}}
+    else{if(ratio<0.8){cat='Low Risk ✅';col='#4CAF50';}else if(ratio<0.85){cat='Moderate Risk';col='#FF9800';}else{cat='High Risk';col='#f44336';}}
+    result={type:'whr',ratio,category:cat};
+    html=`<div class="calc-result"><div class="calc-num">${ratio}</div><div class="calc-cat" style="color:${col}">${cat}</div><div class="calc-desc">Waist-to-Hip Ratio</div></div>`;
+  } else if(type==='orm'){
+    const w=parseFloat(el('cormW').value),r=parseInt(el('cormR').value);
+    if(!w||!r||r<1||r>36)return;
+    const orm=Math.round(w*(36/(37-r)));
+    result={type:'orm',oneRM:orm,liftedW:w,reps:r};
+    html=`<div class="calc-result"><div class="calc-num">${orm} lbs</div><div class="calc-cat" style="color:var(--gold)">Estimated 1-Rep Max</div><div class="calc-desc">Based on ${w}lbs × ${r} reps (Brzycki Formula)</div></div>`;
+  }
+  if(html){
+    const saveHtml=`<div class="save-to-client"><div style="font-size:13px;color:var(--text2);font-weight:700;margin-bottom:8px">💾 Save to Client:</div><select class="form-select" id="calcSaveClientInline" style="margin-bottom:8px">${DB.clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select><button class="btn-primary" onclick="saveCalcInline()">Save to Client History</button></div>`;
+    document.getElementById('calcResult-'+type).innerHTML=html+saveHtml;
+    lastCalcResult=result||{};
+  }
+}
+function saveCalcInline(){
+  const cid=document.getElementById('calcSaveClientInline')?.value;
+  if(!cid||!lastCalcResult.type){toast('No result to save','err');return;}
+  const c=DB.clients.find(x=>x.id===cid);if(!c)return;
+  if(!c.progress)c.progress=[];
+  c.progress.push({date:today(),type:'calculator',...lastCalcResult,notes:'Calculator result'});
+  saveDB();syncToFirebase('ptm_clients',c);toast('Saved to '+c.name+' history! ✅','ok');
+}
 
 // ===== INIT =====
 loadDB();
