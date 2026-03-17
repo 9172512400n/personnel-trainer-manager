@@ -8,6 +8,105 @@
 <meta name="theme-color" content="#1a1a1a"/>
 <title>Zohar Personal Trainer</title>
 <link rel="manifest" href="manifest.json"/>
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updatePassword, EmailAuthProvider, reauthenticateWithCredential, browserLocalPersistence, setPersistence } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
+import { getFirestore, doc, setDoc, getDoc, collection, getDocs, addDoc, updateDoc, deleteDoc, query, where, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBVuXZnTjB2YaJRC6HEKdd9ITQrj-AmL2c",
+  authDomain: "maman-contracting-app.firebaseapp.com",
+  projectId: "maman-contracting-app",
+  storageBucket: "maman-contracting-app.firebasestorage.app",
+  messagingSenderId: "498283734366",
+  appId: "1:498283734366:web:0d4704ae3212923a385bcf"
+};
+
+const app = initializeApp(firebaseConfig, 'ptm');
+const auth = getAuth(app);
+const firestore = getFirestore(app);
+setPersistence(auth, browserLocalPersistence).catch(e => console.warn('setPersistence:', e));
+
+// Expose globally
+window._fbAuth = auth;
+window._fbFS = firestore;
+window._fbFns = { doc, setDoc, getDoc, collection, getDocs, addDoc, updateDoc, deleteDoc, query, where, serverTimestamp };
+window._fbFirebase = true;
+
+// FS helpers
+window.fsGetAll = async (col) => {
+  const uid = auth.currentUser?.uid;
+  if(!uid) return [];
+  const q = query(collection(firestore, col), where('uid','==',uid));
+  const snap = await getDocs(q);
+  return snap.docs.map(d=>({...d.data(), _fsId: d.id}));
+};
+window.fsSave = async (col, data) => {
+  const uid = auth.currentUser?.uid;
+  if(!uid) return null;
+  const payload = {...data, uid, updatedAt: serverTimestamp()};
+  if(data._fsId) {
+    await updateDoc(doc(firestore, col, data._fsId), payload);
+    return data._fsId;
+  } else {
+    const ref = await addDoc(collection(firestore, col), payload);
+    return ref.id;
+  }
+};
+window.fsDelete = async (col, fsId) => {
+  if(!fsId) return;
+  await deleteDoc(doc(firestore, col, fsId));
+};
+window.fsLoadSettings = async () => {
+  const uid = auth.currentUser?.uid;
+  if(!uid) return null;
+  const snap = await getDoc(doc(firestore, 'ptm_settings', uid));
+  return snap.exists() ? snap.data() : null;
+};
+window.fsSaveSettings = async (data) => {
+  const uid = auth.currentUser?.uid;
+  if(!uid) return;
+  await setDoc(doc(firestore, 'ptm_settings', uid), {...data, uid, updatedAt: serverTimestamp()});
+};
+
+// Auth state listener
+onAuthStateChanged(auth, async (user) => {
+  window._fbUser = user;
+  if(user) {
+    document.getElementById('loginPage').classList.remove('open');
+    DB.user = {email: user.email, uid: user.uid};
+    await loadFromFirebase();
+    loadApp();
+  } else {
+    if(!window._demoMode) {
+      document.getElementById('loginPage').classList.add('open');
+    }
+  }
+});
+
+// Sign up
+window.fbSignUp = async (email, pass) => {
+  await createUserWithEmailAndPassword(auth, email, pass);
+};
+// Sign in
+window.fbSignIn = async (email, pass) => {
+  await signInWithEmailAndPassword(auth, email, pass);
+};
+// Sign out
+window.fbSignOut = async () => {
+  await signOut(auth);
+};
+// Change password
+window.fbChangePass = async (oldPass, newPass) => {
+  const user = auth.currentUser;
+  const cred = EmailAuthProvider.credential(user.email, oldPass);
+  await reauthenticateWithCredential(user, cred);
+  await updatePassword(user, newPass);
+};
+</script>
+
 <style>
 /* ===== THEME VARIABLES ===== */
 :root {
@@ -641,44 +740,79 @@ function setAuthTab(t) {
   document.getElementById('loginErr').style.display='none';
 }
 
-function doAuth() {
+async function doAuth() {
   const email=document.getElementById('loginEmail').value.trim();
   const pass=document.getElementById('loginPass').value;
-  const remember=document.getElementById('rememberMe').checked;
   if(!email||!pass){showErr('Please enter email and password.');return;}
-  if(authMode==='signup') {
-    const confirm=document.getElementById('confirmPass').value;
-    if(pass!==confirm){showErr('Passwords do not match.');return;}
-    if(pass.length<6){showErr('Password must be at least 6 characters.');return;}
-    // Check if exists
-    const users = JSON.parse(localStorage.getItem('ptm_users')||'{}');
-    if(users[email]){showErr('An account with this email already exists.');return;}
-    users[email]=btoa(pass);
-    localStorage.setItem('ptm_users',JSON.stringify(users));
-    toast('Account created! Welcome.','ok');
-  } else {
-    const users=JSON.parse(localStorage.getItem('ptm_users')||'{}');
-    if(!users[email]||users[email]!==btoa(pass)){showErr('Incorrect email or password.');return;}
+  const btn=document.getElementById('authBtn');
+  btn.innerHTML='<span class="spinner"></span>Please wait...';btn.disabled=true;
+  try {
+    if(authMode==='signup') {
+      const confirm=document.getElementById('confirmPass').value;
+      if(pass!==confirm){showErr('Passwords do not match.');return;}
+      if(pass.length<6){showErr('Password must be at least 6 characters.');return;}
+      if(window.fbSignUp) { await window.fbSignUp(email,pass); }
+      else { fallbackLogin(email); }
+    } else {
+      if(window.fbSignIn) { await window.fbSignIn(email,pass); }
+      else { fallbackLogin(email); }
+    }
+    // onAuthStateChanged handles the rest for Firebase
+  } catch(e) {
+    const msgs={'auth/user-not-found':'No account with this email.','auth/wrong-password':'Incorrect password.','auth/email-already-in-use':'An account with this email already exists.','auth/invalid-email':'Invalid email address.','auth/weak-password':'Password too weak (min 6 chars).','auth/too-many-requests':'Too many attempts. Wait a moment.','auth/invalid-credential':'Incorrect email or password.'};
+    showErr(msgs[e.code]||'Error: '+(e.message||'Unknown'));
+  } finally {
+    btn.textContent=authMode==='login'?'Sign In':'Create Account';btn.disabled=false;
   }
-  if(remember) {
-    localStorage.setItem('ptm_saved_email',email);
-    localStorage.setItem('ptm_saved_pass',btoa(pass));
-  }
-  DB.user={email};
-  saveDB();
-  document.getElementById('loginPage').classList.remove('open');
-  loadApp();
+}
+
+function fallbackLogin(email) {
+  DB.user={email};saveDB();document.getElementById('loginPage').classList.remove('open');loadApp();
 }
 
 function showErr(msg) { const e=document.getElementById('loginErr'); e.textContent=msg; e.style.display='block'; }
 
 function doDemo() {
-  DEMO=true;
+  DEMO=true;window._demoMode=true;
   DB.user={email:'demo@zohartrainer.com'};
-  loadDemoData();
-  saveDB();
+  loadDemoData();saveDB();
   document.getElementById('loginPage').classList.remove('open');
   loadApp();
+}
+
+// Load data from Firebase for logged-in user
+async function loadFromFirebase() {
+  if(!window._fbFirebase||DEMO) return;
+  try {
+    const [clients,sessions,invoices,tasks] = await Promise.all([
+      window.fsGetAll('ptm_clients'),
+      window.fsGetAll('ptm_sessions'),
+      window.fsGetAll('ptm_invoices'),
+      window.fsGetAll('ptm_tasks')
+    ]);
+    DB.clients=clients; DB.sessions=sessions; DB.invoices=invoices; DB.tasks=tasks;
+    // Fix invoices: ensure items array
+    DB.invoices=DB.invoices.map(i=>({...i, items: i.items||[{desc: i.service||'Service', amount: i.amount||0, date: i.date}]}));
+    const settings = await window.fsLoadSettings();
+    if(settings) DB.settings={...DB.settings,...settings};
+    saveDB();
+  } catch(e) { console.warn('Firebase load error',e); }
+}
+
+// Save a single record to Firebase
+async function syncToFirebase(col, item) {
+  if(!window._fbFirebase||DEMO||!window._fbUser) return;
+  try { item._fsId = await window.fsSave(col, item); } catch(e) { console.warn('Firebase sync error',e); }
+}
+
+async function deleteFromFirebase(col, item) {
+  if(!window._fbFirebase||DEMO||!window._fbUser) return;
+  try { if(item._fsId) await window.fsDelete(col, item._fsId); } catch(e) { console.warn('Firebase delete error',e); }
+}
+
+async function syncSettingsToFirebase() {
+  if(!window._fbFirebase||DEMO||!window._fbUser) return;
+  try { await window.fsSaveSettings(DB.settings); } catch(e) { console.warn('Firebase settings sync error',e); }
 }
 
 function loadDemoData() {
@@ -708,11 +842,10 @@ function loadDemoData() {
   DB.settings.nextInv=1004;
 }
 
-function doLogout() {
-  DEMO=false;
+async function doLogout() {
+  DEMO=false;window._demoMode=false;
+  if(window.fbSignOut&&window._fbUser) { try { await window.fbSignOut(); } catch(e){} }
   DB.user=null;
-  localStorage.removeItem('ptm_saved_email');
-  localStorage.removeItem('ptm_saved_pass');
   localStorage.removeItem('ptm_v3');
   location.reload();
 }
@@ -833,29 +966,33 @@ function renderWeekGrid() {
 
 // ===== SESSION ACTIONS =====
 function togBP(el){el.classList.toggle('selected');}
-function saveSession() {
+async function saveSession() {
   const cid=document.getElementById('sClient').value,date=document.getElementById('sDate').value,time=document.getElementById('sTime').value;
   if(!cid||!date||!time){toast('Client, date & time required!','err');return;}
-  DB.sessions.push({id:'S'+Date.now(),clientId:cid,date,time,duration:parseInt(document.getElementById('sDur').value)||60,paid:false,bodyParts:Array.from(document.querySelectorAll('.body-chip.selected')).map(c=>c.textContent),notes:document.getElementById('sNotes').value});
+  const sess={id:'S'+Date.now(),clientId:cid,date,time,duration:parseInt(document.getElementById('sDur').value)||60,paid:false,bodyParts:Array.from(document.querySelectorAll('.body-chip.selected')).map(c=>c.textContent),notes:document.getElementById('sNotes').value};
+  DB.sessions.push(sess);
   saveDB();closeM('addSessionModal');
   document.getElementById('sClient').value='';document.getElementById('sNotes').value='';
   document.querySelectorAll('.body-chip').forEach(c=>c.classList.remove('selected'));
   renderHome();renderDayBar();renderWeekGrid();toast('Session saved! 💪','ok');
+  await syncToFirebase('ptm_sessions',sess);
 }
-function quickPaid(id) { const s=DB.sessions.find(x=>x.id===id);if(s){s.paid=true;saveDB();renderHome();renderDaySched();toast('Marked as paid ✅','ok');} }
-function delSession(id) { if(!confirm('Delete this session?'))return;DB.sessions=DB.sessions.filter(x=>x.id!==id);saveDB();renderDaySched();renderHome();toast('Session deleted'); }
+async function quickPaid(id) { const s=DB.sessions.find(x=>x.id===id);if(s){s.paid=true;saveDB();renderHome();renderDaySched();toast('Marked as paid ✅','ok');await syncToFirebase('ptm_sessions',s);} }
+async function delSession(id) { if(!confirm('Delete this session?'))return;const s=DB.sessions.find(x=>x.id===id);DB.sessions=DB.sessions.filter(x=>x.id!==id);saveDB();renderDaySched();renderHome();toast('Session deleted');if(s)await deleteFromFirebase('ptm_sessions',s); }
 function openResched(id) { reschedId=id;const s=DB.sessions.find(x=>x.id===id);if(s){document.getElementById('rsDate').value=s.date;document.getElementById('rsTime').value=s.time;}openM('reschedModal'); }
-function applyResched() { const s=DB.sessions.find(x=>x.id===reschedId);if(s){s.date=document.getElementById('rsDate').value;s.time=document.getElementById('rsTime').value;saveDB();closeM('reschedModal');renderDayBar();renderWeekGrid();renderHome();toast('Rescheduled! 📅','ok');} }
+async function applyResched() { const s=DB.sessions.find(x=>x.id===reschedId);if(s){s.date=document.getElementById('rsDate').value;s.time=document.getElementById('rsTime').value;saveDB();closeM('reschedModal');renderDayBar();renderWeekGrid();renderHome();toast('Rescheduled! 📅','ok');await syncToFirebase('ptm_sessions',s);} }
 function invoiceFromSession(sid) { const s=DB.sessions.find(x=>x.id===sid);if(!s)return;document.getElementById('iClient').value=s.clientId;document.getElementById('iDate').value=s.date;const c=DB.clients.find(x=>x.id===s.clientId);document.getElementById('liDesc').value=`Training Session${s.bodyParts&&s.bodyParts.length?' ('+s.bodyParts.join(', ')+')':''}`;lineItems=[];renderLineItems();switchTab('invoices');openM('addInvoiceModal'); }
 
 // ===== CLIENTS =====
-function saveClient() {
+async function saveClient() {
   const name=document.getElementById('cName').value.trim(),phone=document.getElementById('cPhone').value.trim();
   if(!name||!phone){toast('Name & phone required!','err');return;}
-  DB.clients.push({id:'C'+Date.now(),name,phone,email:document.getElementById('cEmail').value,address:document.getElementById('cAddr').value,goals:document.getElementById('cGoals').value,notes:document.getElementById('cNotes').value,progress:[]});
+  const client={id:'C'+Date.now(),name,phone,email:document.getElementById('cEmail').value,address:document.getElementById('cAddr').value,goals:document.getElementById('cGoals').value,notes:document.getElementById('cNotes').value,progress:[]};
+  DB.clients.push(client);
   saveDB();closeM('addClientModal');
   ['cName','cPhone','cEmail','cAddr','cGoals','cNotes'].forEach(id=>document.getElementById(id).value='');
   renderClients();populateSelects();toast('Client added! 👤','ok');
+  await syncToFirebase('ptm_clients',client);
 }
 function renderClients(filter='') {
   let cs=DB.clients;if(filter)cs=cs.filter(c=>c.name.toLowerCase().includes(filter.toLowerCase())||c.phone.includes(filter));
@@ -902,11 +1039,11 @@ function switchProfTab(tab, btn) {
   }
 }
 function updC(id,f,v){const c=DB.clients.find(x=>x.id===id);if(c)c[f]=v;}
-function updCSave(){saveDB();renderClients();populateSelects();toast('Client updated ✅','ok');}
-function delClient(id){if(!confirm('Delete client and all their sessions?'))return;DB.clients=DB.clients.filter(x=>x.id!==id);DB.sessions=DB.sessions.filter(x=>x.clientId!==id);saveDB();closeM('clientProfileModal');renderClients();toast('Client deleted');}
+async function updCSave(){const c=DB.clients.find(x=>x.id===currentProfileId);saveDB();renderClients();populateSelects();toast('Client updated ✅','ok');if(c)await syncToFirebase('ptm_clients',c);}
+async function delClient(id){if(!confirm('Delete client and all their sessions?'))return;const c=DB.clients.find(x=>x.id===id);const ss=DB.sessions.filter(x=>x.clientId!==id);DB.clients=DB.clients.filter(x=>x.id!==id);DB.sessions=ss;saveDB();closeM('clientProfileModal');renderClients();toast('Client deleted');if(c)await deleteFromFirebase('ptm_clients',c);}
 
 // ===== PROGRESS =====
-function saveProgress() {
+async function saveProgress() {
   const c=DB.clients.find(x=>x.id===currentProfileId);if(!c)return;
   const w=parseFloat(document.getElementById('pgWeight').value);
   const h=parseFloat(document.getElementById('pgHeight').value);
@@ -917,6 +1054,7 @@ function saveProgress() {
   ['pgWeight','pgHeight','pgFat','pgMuscle','pgNotes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('pgDate').value=today();
   switchProfTab('progress',null);toast('Progress logged! 📊','ok');
+  await syncToFirebase('ptm_clients',c);
 }
 function editProg(idx) {
   const c=DB.clients.find(x=>x.id===currentProfileId);if(!c||!c.progress[idx])return;
@@ -930,19 +1068,21 @@ function editProg(idx) {
   document.getElementById('epNotes').value=p.notes||'';
   openM('editProgModal');
 }
-function saveEditProg() {
+async function saveEditProg() {
   const c=DB.clients.find(x=>x.id===currentProfileId);if(!c)return;
   const idx=parseInt(document.getElementById('epIdx').value);
   const w=parseFloat(document.getElementById('epWeight').value);
   const h=parseFloat(document.getElementById('epHeight').value);
   c.progress[idx]={date:document.getElementById('epDate').value,weight:w||null,height:h||null,bmi:w&&h?Math.round((w/(h*h))*703*10)/10:null,fat:parseFloat(document.getElementById('epFat').value)||null,muscle:parseFloat(document.getElementById('epMuscle').value)||null,notes:document.getElementById('epNotes').value};
   saveDB();closeM('editProgModal');switchProfTab('progress',null);toast('Entry updated ✅','ok');
+  await syncToFirebase('ptm_clients',c);
 }
-function deleteProgEntry() {
+async function deleteProgEntry() {
   if(!confirm('Delete this progress entry?'))return;
   const c=DB.clients.find(x=>x.id===currentProfileId);if(!c)return;
   const idx=parseInt(document.getElementById('epIdx').value);
   c.progress.splice(idx,1);saveDB();closeM('editProgModal');switchProfTab('progress',null);toast('Entry deleted');
+  await syncToFirebase('ptm_clients',c);
 }
 
 // ===== INVOICES =====
@@ -1009,22 +1149,26 @@ function addLineItem() {
 function removeLineItem(i){lineItems.splice(i,1);renderLineItems();}
 function onInvClientChange(){document.getElementById('iNewClientFields').style.display=document.getElementById('iClient').value==='__new__'?'block':'none';}
 
-function saveInvoice() {
+async function saveInvoice() {
   let cid=document.getElementById('iClient').value;
   if(cid==='__new__'){
     const name=document.getElementById('iNewName').value.trim(),phone=document.getElementById('iNewPhone').value.trim();
     if(!name||!phone){toast('Client name & phone required!','err');return;}
     const nc={id:'C'+Date.now(),name,phone,email:'',address:'',goals:'',notes:'',progress:[]};
     DB.clients.push(nc);cid=nc.id;renderClients();populateSelects();
+    await syncToFirebase('ptm_clients',nc);
   }
   if(!cid){toast('Select a client!','err');return;}
   if(!lineItems.length){toast('Add at least one charge!','err');return;}
-  DB.invoices.push({id:'I'+Date.now(),num:DB.settings.nextInv++,clientId:cid,date:document.getElementById('iDate').value||today(),items:[...lineItems],paid:0,status:'unpaid'});
+  const inv={id:'I'+Date.now(),num:DB.settings.nextInv++,clientId:cid,date:document.getElementById('iDate').value||today(),items:[...lineItems],paid:0,status:'unpaid'};
+  DB.invoices.push(inv);
   saveDB();closeM('addInvoiceModal');
   lineItems=[];renderLineItems();document.getElementById('iClient').value='';
   document.getElementById('iNewClientFields').style.display='none';
   ['iNewName','iNewPhone'].forEach(id=>document.getElementById(id).value='');
   renderInvoices();toast('Invoice created! 💸','ok');
+  await syncToFirebase('ptm_invoices',inv);
+  await syncSettingsToFirebase();
 }
 
 function openPay(id) {
@@ -1034,7 +1178,7 @@ function openPay(id) {
   document.getElementById('payAmt').value=bal.toFixed(2);
   openM('payModal');
 }
-function applyPayment() {
+async function applyPayment() {
   const inv=DB.invoices.find(x=>x.id===currentInvId);if(!inv)return;
   const amt=parseFloat(document.getElementById('payAmt').value)||0;
   inv.paid=(inv.paid||0)+amt;
@@ -1042,8 +1186,9 @@ function applyPayment() {
   if(inv.paid>=tot){inv.status='paid';inv.paid=tot;}else if(inv.paid>0)inv.status='partial';
   saveDB();closeM('payModal');renderInvoices();
   toast(inv.status==='paid'?'Invoice paid & closed! ✅':'Payment of $'+amt.toFixed(2)+' applied 💰',inv.status==='paid'?'ok':'');
+  await syncToFirebase('ptm_invoices',inv);
 }
-function delInv(id) { if(!confirm('Delete this invoice? Cannot be undone.'))return;DB.invoices=DB.invoices.filter(x=>x.id!==id);saveDB();renderInvoices();toast('Invoice deleted'); }
+async function delInv(id) { if(!confirm('Delete this invoice? Cannot be undone.'))return;const inv=DB.invoices.find(x=>x.id===id);DB.invoices=DB.invoices.filter(x=>x.id!==id);saveDB();renderInvoices();toast('Invoice deleted');if(inv)await deleteFromFirebase('ptm_invoices',inv); }
 
 // ===== SHARE INVOICE =====
 function shareInv(id,method) {
@@ -1096,19 +1241,21 @@ function printInv(id) {
 }
 
 // ===== TASKS =====
-function saveTask() {
+async function saveTask() {
   const text=document.getElementById('tText').value.trim();if(!text){toast('Enter a task!','err');return;}
-  DB.tasks.push({id:'T'+Date.now(),text,datetime:document.getElementById('tDT').value,done:false});
+  const task={id:'T'+Date.now(),text,datetime:document.getElementById('tDT').value,done:false};
+  DB.tasks.push(task);
   saveDB();closeM('addTaskModal');document.getElementById('tText').value='';document.getElementById('tDT').value='';
   renderTasks();renderHome();toast('Task saved! 📝','ok');
+  await syncToFirebase('ptm_tasks',task);
 }
 function renderTasks() {
   const open=DB.tasks.filter(t=>!t.done),closed=DB.tasks.filter(t=>t.done);
   document.getElementById('openTasks').innerHTML=open.length?open.map(t=>`<div class="task-item"><div class="task-info"><div class="task-text">${t.text}</div><div class="task-time">${t.datetime?fmtDT(t.datetime):''}</div></div><div class="task-actions"><button class="btn-sm btn-paid" onclick="doneTask('${t.id}')">Done ✅</button><button class="btn-sm btn-gold" onclick="followUp('${t.id}')">Follow Up</button></div></div>`).join(''):'<div class="empty"><div class="ei">📝</div><p>No open tasks. Tap + to add!</p></div>';
   document.getElementById('closedTasks').innerHTML=closed.length?closed.map(t=>`<div class="task-item" style="opacity:0.6"><div class="task-info"><div class="task-text" style="text-decoration:line-through">${t.text}</div><div class="task-time">${t.datetime?fmtDT(t.datetime):''}</div></div><button class="btn-sm btn-secondary" onclick="reopenTask('${t.id}')">Reopen</button></div>`).join(''):'<div class="empty"><div class="ei">🎉</div><p>Completed tasks appear here.</p></div>';
 }
-function doneTask(id){const t=DB.tasks.find(x=>x.id===id);if(t){t.done=true;saveDB();renderTasks();renderHome();toast('Done! ✅','ok');}}
-function reopenTask(id){const t=DB.tasks.find(x=>x.id===id);if(t){t.done=false;saveDB();renderTasks();toast('Task reopened');}}
+async function doneTask(id){const t=DB.tasks.find(x=>x.id===id);if(t){t.done=true;saveDB();renderTasks();renderHome();toast('Done! ✅','ok');await syncToFirebase('ptm_tasks',t);}}
+async function reopenTask(id){const t=DB.tasks.find(x=>x.id===id);if(t){t.done=false;saveDB();renderTasks();toast('Task reopened');await syncToFirebase('ptm_tasks',t);}}
 function followUp(id){const dt=prompt('New follow-up date/time (YYYY-MM-DDTHH:MM):',new Date().toISOString().slice(0,16));if(dt){const t=DB.tasks.find(x=>x.id===id);if(t){t.datetime=dt;saveDB();renderTasks();toast('Follow-up scheduled! 📅','ok');}}}
 
 // ===== BMI CALCULATOR =====
@@ -1130,7 +1277,7 @@ function calcBMI() {
 
 // ===== SETTINGS =====
 function loadSettingsForm(){const s=DB.settings;['bName','bPhone','bEmail','bAddr','bWeb','bTax'].forEach((id,i)=>{document.getElementById(id).value=[s.bizName,s.bizPhone,s.bizEmail,s.bizAddress,s.bizWeb,s.bizTax][i]||'';});document.getElementById('bInvNum').value=s.nextInv||1001;}
-function saveSettings(){
+async function saveSettings(){
   DB.settings.bizName=document.getElementById('bName').value||'Zohar Personal Trainer';
   DB.settings.bizPhone=document.getElementById('bPhone').value;
   DB.settings.bizEmail=document.getElementById('bEmail').value;
@@ -1140,18 +1287,18 @@ function saveSettings(){
   DB.settings.nextInv=parseInt(document.getElementById('bInvNum').value)||1001;
   saveDB();document.getElementById('hName').textContent=DB.settings.bizName.toUpperCase();
   closeM('settingsModal');toast('Settings saved! ✅','ok');
+  await syncSettingsToFirebase();
 }
 
 // ===== CHANGE PASSWORD =====
-function doChangePass(){
-  const p1=document.getElementById('cpNew1').value,p2=document.getElementById('cpNew2').value;
+async function doChangePass(){
+  const old=document.getElementById('cpOld').value,p1=document.getElementById('cpNew1').value,p2=document.getElementById('cpNew2').value;
   if(!p1||p1!==p2){toast('Passwords do not match!','err');return;}
   if(p1.length<6){toast('Min 6 characters','err');return;}
-  const users=JSON.parse(localStorage.getItem('ptm_users')||'{}');
-  if(DB.user?.email)users[DB.user.email]=btoa(p1);
-  localStorage.setItem('ptm_users',JSON.stringify(users));
-  localStorage.setItem('ptm_saved_pass',btoa(p1));
-  closeM('changePassModal');toast('Password updated! 🔑','ok');
+  try {
+    if(window.fbChangePass&&!DEMO) { await window.fbChangePass(old,p1); }
+    closeM('changePassModal');toast('Password updated! 🔑','ok');
+  } catch(e) { toast('Error: '+(e.message||'Could not update password'),'err'); }
 }
 
 // ===== HELPERS =====
@@ -1167,18 +1314,13 @@ function fmtDT(dt){if(!dt)return'';try{const d=new Date(dt);return d.toLocaleDat
 // ===== INIT =====
 loadDB();
 applyTheme(DB.theme||'dark');
-// Auto-login
-const savedEmail=localStorage.getItem('ptm_saved_email');
-const savedPass=localStorage.getItem('ptm_saved_pass');
-if(savedEmail&&savedPass) {
-  const users=JSON.parse(localStorage.getItem('ptm_users')||'{}');
-  if(users[savedEmail]===savedPass) {
-    DB.user={email:savedEmail};document.getElementById('loginEmail').value=savedEmail;
-    document.getElementById('loginPage').classList.remove('open');loadApp();
+// Firebase handles auto-login via onAuthStateChanged + browserLocalPersistence
+// If Firebase not loaded yet (module async), show login after 3s fallback
+setTimeout(()=>{
+  if(!window._fbFirebase&&!window._demoMode) {
+    if(DB.user) { document.getElementById('loginPage').classList.remove('open'); loadApp(); }
   }
-} else if(DB.user) {
-  document.getElementById('loginPage').classList.remove('open');loadApp();
-}
+}, 3000);
 // Pre-fill invoice line items render
 renderLineItems();
 // PWA
