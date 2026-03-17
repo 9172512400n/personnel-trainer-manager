@@ -141,9 +141,10 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
 
 /* ===== HEADER ===== */
 .header { position: fixed; top: 0; left: 0; right: 0; height: var(--head-h); background: var(--bg2); display: flex; align-items: center; justify-content: space-between; padding: 0 12px; z-index: 100; border-bottom: 2px solid var(--gold); }
-.header-logo { display: flex; flex-direction: column; align-items: center; }
+.header-logo { display: flex; flex-direction: column; align-items: center; position: absolute; left: 50%; transform: translateX(-50%); }
 .logo-circle { width: 36px; height: 36px; background: var(--gold); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; color: #000; overflow: hidden; }
-.logo-name { font-size: 9px; color: var(--gold); font-weight: 700; margin-top: 1px; letter-spacing: 0.3px; max-width: 120px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.logo-circle img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.logo-name { font-size: 8px; color: var(--gold); font-weight: 700; margin-top: 1px; letter-spacing: 0.3px; text-align: center; white-space: normal; overflow: visible; text-overflow: clip; max-width: 160px; line-height: 1.2; }
 .header-right { display: flex; align-items: center; gap: 6px; }
 .header-btn { background: none; border: none; color: var(--text); font-size: 22px; cursor: pointer; padding: 6px; }
 .avatar-btn { width: 34px; height: 34px; border-radius: 50%; background: var(--gold); border: none; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
@@ -421,8 +422,8 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
 <div class="login-page open" id="loginPage">
   <div class="login-box">
     <div class="login-logo">
-      <div class="lc">Z</div>
-      <h2>Zohar Personal Trainer</h2>
+      <div class="lc logo-circle" id="loginLogoCircle">Z</div>
+      <h2 id="loginBizName">Zohar Personal Trainer</h2>
       <p>Personnel Trainer Manager</p>
     </div>
     <div style="background:rgba(245,166,35,0.1);border:1px solid var(--gold);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:var(--gold);font-weight:700;text-align:center">🔐 Invite-only access. Contact nirmaman@me.com to request access.</div>
@@ -649,6 +650,9 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
 <div class="modal-overlay" id="clientProfileModal">
   <div class="modal">
     <div class="modal-header"><div class="modal-title" id="profName">Client</div><button class="modal-close" onclick="closeM('clientProfileModal')">✕</button></div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+      <button class="btn-sm btn-gold" onclick="openClientReport()">📊 Share Report</button>
+    </div>
     <div class="profile-tabs">
       <button class="profile-tab active" id="ptS" onclick="switchProfTab('schedule',this)">Schedule</button>
       <button class="profile-tab" id="ptH" onclick="switchProfTab('history',this)">📋 History</button>
@@ -663,6 +667,20 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
 <div class="modal-overlay" id="settingsModal">
   <div class="modal">
     <div class="modal-header"><div class="modal-title">🏢 Business Settings</div><button class="modal-close" onclick="closeM('settingsModal')">✕</button></div>
+
+    <!-- LOGO UPLOAD -->
+    <div class="form-group">
+      <label class="form-label">🖼️ Business Logo</label>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+        <div id="logoPreview" style="width:60px;height:60px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900;color:#000;overflow:hidden;flex-shrink:0">Z</div>
+        <div style="flex:1">
+          <input type="file" id="logoUpload" accept="image/*" style="display:none" onchange="handleLogoUpload(this)"/>
+          <button class="btn-secondary" style="margin-bottom:0;width:auto;padding:8px 16px" onclick="document.getElementById('logoUpload').click()">📁 Upload New Logo</button>
+          <div style="font-size:11px;color:var(--text2);margin-top:4px">PNG, JPG recommended (square works best)</div>
+        </div>
+      </div>
+    </div>
+
     <div class="form-group"><label class="form-label">Business Name</label><input type="text" class="form-input" id="bName" placeholder="Zohar Personal Trainer"/></div>
     <div class="form-group"><label class="form-label">Phone</label><input type="tel" class="form-input" id="bPhone"/></div>
     <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" id="bEmail"/></div>
@@ -670,6 +688,14 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
     <div class="form-group"><label class="form-label">Website</label><input type="text" class="form-input" id="bWeb"/></div>
     <div class="form-group"><label class="form-label">Tax ID / EIN</label><input type="text" class="form-input" id="bTax"/></div>
     <div class="form-group"><label class="form-label">Starting Invoice Number</label><input type="number" class="form-input" id="bInvNum" placeholder="1001"/></div>
+
+    <!-- SIGNATURE -->
+    <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:14px;border:1px solid var(--border)">
+      <div style="font-size:13px;font-weight:800;color:var(--gold);margin-bottom:10px">✍️ Business Signature</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px;font-weight:600">Auto-added to reports, emails and texts</div>
+      <textarea class="form-input" id="bSignature" rows="4" placeholder="Thank you,&#10;Zohar Maman&#10;917-216-2656"></textarea>
+    </div>
+
     <button class="btn-primary" onclick="saveSettings()">💾 Save Settings</button>
   </div>
 </div>
@@ -851,6 +877,19 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
   </div>
 </div>
 
+<!-- CLIENT REPORT -->
+<div class="modal-overlay" id="clientReportModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">📊 Client Report</div><button class="modal-close" onclick="closeM('clientReportModal')">✕</button></div>
+    <div id="clientReportContent" style="max-height:60vh;overflow-y:auto"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+      <button class="btn-primary" style="flex:1;margin-bottom:0" onclick="printClientReport()">🖨️ Print</button>
+      <button class="btn-secondary" style="flex:1;margin-bottom:0" onclick="emailClientReport()">📧 Email</button>
+      <button class="btn-secondary" style="flex:1;margin-bottom:0" onclick="shareClientReportSMS()">💬 Text</button>
+    </div>
+  </div>
+</div>
+
 <!-- SAVE CALC TO CLIENT -->
 <div class="modal-overlay" id="saveCalcModal">
   <div class="modal">
@@ -1015,6 +1054,8 @@ function loadApp() {
   // Show admin-only features
   const adminEl=document.getElementById('inviteUserDrawer');
   if(adminEl)adminEl.style.display=isAdmin(DB.user?.email||'')?'flex':'none';
+  // Apply logo
+  applyLogo();
   // Init notifications
   loadNotifs();renderBell();
   setInterval(checkTaskNotifs,60000);
@@ -1497,8 +1538,123 @@ function calcBMI() {
   document.getElementById('bmiResult').style.display='block';
 }
 
+// ===== LOGO UPLOAD =====
+function handleLogoUpload(input) {
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    DB.settings.logoData=e.target.result;
+    saveDB();applyLogo();
+    toast('Logo updated! 🖼️','ok');
+  };
+  reader.readAsDataURL(file);
+}
+function applyLogo() {
+  const logo=DB.settings.logoData;
+  // Update all logo circles
+  document.querySelectorAll('.logo-circle').forEach(el=>{
+    if(logo){el.innerHTML=`<img src="${logo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`;el.style.background='transparent';}
+    else{el.innerHTML='Z';el.style.background='var(--gold)';}
+  });
+  // Update settings preview
+  const prev=document.getElementById('logoPreview');
+  if(prev){if(logo){prev.innerHTML=`<img src="${logo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`;prev.style.background='transparent';}else{prev.innerHTML='Z';prev.style.background='var(--gold)';}}
+  // Update login logo
+  const loginLogo=document.getElementById('loginLogoCircle');
+  if(loginLogo){if(logo){loginLogo.innerHTML=`<img src="${logo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`;loginLogo.style.background='transparent';}else{loginLogo.innerHTML='Z';loginLogo.style.background='var(--gold)';}}
+  // Update login biz name
+  const loginName=document.getElementById('loginBizName');
+  if(loginName)loginName.textContent=DB.settings.bizName||'Zohar Personal Trainer';
+}
+
+// ===== CLIENT REPORT =====
+function openClientReport() {
+  const c=DB.clients.find(x=>x.id===currentProfileId);if(!c)return;
+  const s=DB.settings;
+  const sig=s.bizSignature||'Thank you,\nZohar Maman\n917-216-2656';
+  const prog=c.progress?[...c.progress].filter(p=>!p.type||p.type!=='calculator').sort((a,b)=>b.date.localeCompare(a.date)):[];
+  const meas=c.measurements?[...c.measurements].sort((a,b)=>b.date.localeCompare(a.date)):[];
+  let html=`
+    <div style="text-align:center;margin-bottom:16px;padding:14px;background:var(--card2);border-radius:12px">
+      ${s.logoData?`<img src="${s.logoData}" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin-bottom:8px"/>`:'<div style="width:60px;height:60px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900;color:#000;margin:0 auto 8px">Z</div>'}
+      <div style="font-size:16px;font-weight:900;color:var(--gold)">${s.bizName||'Zohar Personal Trainer'}</div>
+      ${s.bizPhone?`<div style="font-size:12px;color:var(--text2)">${s.bizPhone}</div>`:''}
+    </div>
+    <div style="margin-bottom:14px;padding:10px;background:var(--card2);border-radius:10px">
+      <div style="font-size:14px;font-weight:800;color:var(--text)">Client: ${c.name}</div>
+      <div style="font-size:12px;color:var(--text2)">${c.phone} ${c.email?'| '+c.email:''}</div>
+      <div style="font-size:11px;color:var(--text2)">Report Date: ${today()}</div>
+    </div>`;
+  if(prog.length){
+    html+=`<div style="margin-bottom:12px"><div style="font-size:13px;font-weight:800;color:var(--gold);margin-bottom:8px">⚖️ Weight History</div>`;
+    prog.forEach(p=>{html+=`<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="font-weight:800;color:var(--text)">${p.date}</span> — ${p.weight?p.weight+' lbs':''} ${p.bmi?'| BMI: '+p.bmi:''} ${p.fat?'| Fat: '+p.fat+'%':''} ${p.notes?'<br><span style="color:var(--text2)">'+p.notes+'</span>':''}</div>`;});
+    html+=`</div>`;
+  }
+  if(meas.length){
+    html+=`<div style="margin-bottom:12px"><div style="font-size:13px;font-weight:800;color:var(--gold);margin-bottom:8px">📏 Body Measurements</div>`;
+    meas.forEach(m=>{html+=`<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="font-weight:800;color:var(--text)">${m.date}</span><br>${m.bust?'Bust: '+m.bust+'"  ':''} ${m.underBust?'UB: '+m.underBust+'"  ':''} ${m.waist?'Waist: '+m.waist+'"  ':''} ${m.hip?'Hip: '+m.hip+'"  ':''} ${m.wrist?'Wrist: '+m.wrist+'"':''} ${m.notes?'<br><span style="color:var(--text2)">'+m.notes+'</span>':''}</div>`;});
+    html+=`</div>`;
+  }
+  html+=`<div style="margin-top:16px;padding:12px;background:var(--card2);border-radius:10px;font-size:12px;color:var(--text2);white-space:pre-line;font-weight:600">${sig}</div>`;
+  document.getElementById('clientReportContent').innerHTML=html;
+  openM('clientReportModal');
+}
+
+function getReportText(){
+  const c=DB.clients.find(x=>x.id===currentProfileId);if(!c)return '';
+  const s=DB.settings;
+  const sig=s.bizSignature||'Thank you,\nZohar Maman\n917-216-2656';
+  let txt=`${s.bizName||'Zohar Personal Trainer'}\n${s.bizPhone||''}\n\nClient Report: ${c.name}\n${c.phone}\nDate: ${today()}\n`;
+  const prog=c.progress?[...c.progress].filter(p=>!p.type||p.type!=='calculator').sort((a,b)=>b.date.localeCompare(a.date)):[];
+  const meas=c.measurements?[...c.measurements].sort((a,b)=>b.date.localeCompare(a.date)):[];
+  if(prog.length){txt+=`\n⚖️ Weight History:\n`;prog.forEach(p=>{txt+=`${p.date}: ${p.weight?p.weight+' lbs':''} ${p.bmi?'BMI: '+p.bmi:''} ${p.fat?'Fat: '+p.fat+'%':''} ${p.notes?'('+p.notes+')':''}\n`;});}
+  if(meas.length){txt+=`\n📏 Body Measurements:\n`;meas.forEach(m=>{txt+=`${m.date}: ${m.bust?'Bust: '+m.bust+'"':''} ${m.underBust?'UB: '+m.underBust+'"':''} ${m.waist?'Waist: '+m.waist+'"':''} ${m.hip?'Hip: '+m.hip+'"':''} ${m.wrist?'Wrist: '+m.wrist+'"':''} ${m.notes?'('+m.notes+')':''}\n`;});}
+  txt+=`\n${sig}`;
+  return txt;
+}
+
+function printClientReport(){
+  const c=DB.clients.find(x=>x.id===currentProfileId);if(!c)return;
+  const s=DB.settings;const sig=s.bizSignature||'Thank you,\nZohar Maman\n917-216-2656';
+  const prog=c.progress?[...c.progress].filter(p=>!p.type||p.type!=='calculator').sort((a,b)=>b.date.localeCompare(a.date)):[];
+  const meas=c.measurements?[...c.measurements].sort((a,b)=>b.date.localeCompare(a.date)):[];
+  const w=window.open('','_blank');
+  let html=`<!DOCTYPE html><html><head><title>Client Report - ${c.name}</title><style>body{font-family:Arial,sans-serif;padding:40px;color:#111;max-width:700px;margin:0 auto}.header{text-align:center;margin-bottom:24px;padding:20px;background:#f9f9f9;border-radius:8px}h1{color:#F5A623;font-size:24px;margin:0 0 4px}table{width:100%;border-collapse:collapse;margin:12px 0}th{background:#F5A623;padding:8px;text-align:left;font-size:12px}td{padding:8px;border-bottom:1px solid #eee;font-size:12px}.sig{margin-top:30px;padding:14px;background:#f9f9f9;border-radius:8px;font-size:13px;white-space:pre-line}</style></head><body>`;
+  html+=`<div class="header">${s.logoData?`<img src="${s.logoData}" style="width:60px;height:60px;border-radius:50%;margin-bottom:8px"/><br/>`:''}
+    <h1>${s.bizName||'Zohar Personal Trainer'}</h1>${s.bizPhone?`<div>${s.bizPhone}</div>`:''}</div>
+    <div style="margin-bottom:16px"><strong>Client:</strong> ${c.name} | ${c.phone}<br/><strong>Report Date:</strong> ${today()}</div>`;
+  if(prog.length){html+=`<h3>⚖️ Weight History</h3><table><thead><tr><th>Date</th><th>Weight</th><th>BMI</th><th>Body Fat %</th><th>Notes</th></tr></thead><tbody>${prog.map(p=>`<tr><td>${p.date}</td><td>${p.weight?p.weight+' lbs':'-'}</td><td>${p.bmi||'-'}</td><td>${p.fat?p.fat+'%':'-'}</td><td>${p.notes||'-'}</td></tr>`).join('')}</tbody></table>`;}
+  if(meas.length){html+=`<h3>📏 Body Measurements</h3><table><thead><tr><th>Date</th><th>Bust</th><th>Under Bust</th><th>Waist</th><th>Hip</th><th>Wrist</th></tr></thead><tbody>${meas.map(m=>`<tr><td>${m.date}</td><td>${m.bust?m.bust+'"':'-'}</td><td>${m.underBust?m.underBust+'"':'-'}</td><td>${m.waist?m.waist+'"':'-'}</td><td>${m.hip?m.hip+'"':'-'}</td><td>${m.wrist?m.wrist+'"':'-'}</td></tr>`).join('')}</tbody></table>`;}
+  html+=`<div class="sig">${sig}</div></body></html>`;
+  w.document.write(html);w.document.close();setTimeout(()=>w.print(),500);
+}
+
+function emailClientReport(){
+  const c=DB.clients.find(x=>x.id===currentProfileId);if(!c)return;
+  const s=DB.settings;
+  const sub=encodeURIComponent(`Client Progress Report - ${c.name}`);
+  const body=encodeURIComponent(getReportText());
+  window.open(`mailto:${c.email||''}?subject=${sub}&body=${body}`);
+}
+
+function shareClientReportSMS(){
+  const c=DB.clients.find(x=>x.id===currentProfileId);if(!c)return;
+  const phone=(c.phone||'').replace(/\D/g,'');
+  window.open(`sms:${phone}?body=${encodeURIComponent(getReportText())}`);
+}
+
 // ===== SETTINGS =====
-function loadSettingsForm(){const s=DB.settings;['bName','bPhone','bEmail','bAddr','bWeb','bTax'].forEach((id,i)=>{document.getElementById(id).value=[s.bizName,s.bizPhone,s.bizEmail,s.bizAddress,s.bizWeb,s.bizTax][i]||'';});document.getElementById('bInvNum').value=s.nextInv||1001;}
+function loadSettingsForm(){
+  const s=DB.settings;
+  ['bName','bPhone','bEmail','bAddr','bWeb','bTax'].forEach((id,i)=>{document.getElementById(id).value=[s.bizName,s.bizPhone,s.bizEmail,s.bizAddress,s.bizWeb,s.bizTax][i]||'';});
+  document.getElementById('bInvNum').value=s.nextInv||1001;
+  document.getElementById('bSignature').value=s.bizSignature||'Thank you,\nZohar Maman\n917-216-2656';
+  // Load logo preview
+  if(s.logoData){
+    const prev=document.getElementById('logoPreview');
+    if(prev){prev.innerHTML=`<img src="${s.logoData}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`;prev.style.background='transparent';}
+  }
+}
 async function saveSettings(){
   DB.settings.bizName=document.getElementById('bName').value||'Zohar Personal Trainer';
   DB.settings.bizPhone=document.getElementById('bPhone').value;
@@ -1507,7 +1663,10 @@ async function saveSettings(){
   DB.settings.bizWeb=document.getElementById('bWeb').value;
   DB.settings.bizTax=document.getElementById('bTax').value;
   DB.settings.nextInv=parseInt(document.getElementById('bInvNum').value)||1001;
-  saveDB();document.getElementById('hName').textContent=DB.settings.bizName.toUpperCase();
+  DB.settings.bizSignature=document.getElementById('bSignature').value;
+  saveDB();
+  document.getElementById('hName').textContent=DB.settings.bizName.toUpperCase();
+  applyLogo();
   closeM('settingsModal');toast('Settings saved! ✅','ok');
   await syncSettingsToFirebase();
 }
