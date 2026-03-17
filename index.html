@@ -391,6 +391,28 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
 /* ===== SPINNER ===== */
 .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 6px; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== CONTACT ACTION BUTTONS ===== */
+.contact-actions { display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
+.contact-action-btn { width: 30px; height: 30px; border-radius: 50%; border: none; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; text-decoration: none; }
+.btn-call { background: rgba(76,175,80,0.15); color: var(--green); border: 1px solid var(--green); }
+.btn-text { background: rgba(33,150,243,0.15); color: var(--blue); border: 1px solid var(--blue); }
+.btn-email-c { background: rgba(245,166,35,0.15); color: var(--gold); border: 1px solid var(--gold); }
+.contact-action-inline { display: flex; gap: 6px; margin-top: 6px; }
+.contact-action-inline a { display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; text-decoration: none; }
+
+/* ===== REMINDER TOGGLE ===== */
+.reminder-toggle { display: flex; align-items: center; gap: 4px; background: none; border: 1px solid var(--border); border-radius: 20px; padding: 4px 8px; font-size: 12px; font-weight: 700; cursor: pointer; color: var(--text2); white-space: nowrap; }
+.reminder-toggle.on { color: var(--gold); border-color: var(--gold); background: rgba(245,166,35,0.1); }
+.reminder-on-label { font-size: 10px; color: var(--gold); font-weight: 700; margin-top: 2px; }
+
+/* ===== SESSION REMINDER MODAL ===== */
+.reminder-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 600; align-items: center; justify-content: center; padding: 16px; }
+.reminder-modal-overlay.open { display: flex; }
+.reminder-modal-box { background: var(--card); border-radius: 20px; padding: 24px 20px; width: 100%; max-width: 360px; border: 2px solid var(--gold); box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
+.reminder-modal-title { font-size: 20px; font-weight: 900; color: var(--gold); margin-bottom: 10px; text-align: center; }
+.reminder-modal-msg { font-size: 15px; font-weight: 600; color: var(--text); text-align: center; margin-bottom: 20px; line-height: 1.5; }
+.reminder-modal-btns { display: flex; flex-direction: column; gap: 10px; }
 </style>
 </head>
 <body>
@@ -817,6 +839,18 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
   </div>
 </div>
 
+<!-- SESSION REMINDER MODAL -->
+<div class="reminder-modal-overlay" id="sessionReminderModal">
+  <div class="reminder-modal-box">
+    <div class="reminder-modal-title">⏰ Session Reminder</div>
+    <div class="reminder-modal-msg" id="reminderModalMsg">Upcoming session in 30 minutes!</div>
+    <div class="reminder-modal-btns">
+      <button class="btn-primary" id="reminderSmsBtn" onclick="sendReminderSMS()">📱 Send Text</button>
+      <button class="btn-secondary" onclick="dismissReminderModal()">Dismiss</button>
+    </div>
+  </div>
+</div>
+
 <!-- SAVE CALC TO CLIENT -->
 <div class="modal-overlay" id="saveCalcModal">
   <div class="modal">
@@ -984,6 +1018,9 @@ function loadApp() {
   // Init notifications
   loadNotifs();renderBell();
   setInterval(checkTaskNotifs,60000);
+  setInterval(checkSessionReminders,60000);
+  // Run once at startup too (after a small delay to let data load)
+  setTimeout(checkSessionReminders, 5000);
   // Request notification permission
   if('Notification'in window&&Notification.permission==='default'){Notification.requestPermission();}
   loadSettingsForm();
@@ -1034,11 +1071,27 @@ function renderHome() {
   // Today
   const ts=DB.sessions.filter(s=>s.date===t).sort((a,b)=>a.time.localeCompare(b.time));
   const sd=document.getElementById('todaySched');
-  sd.innerHTML=ts.length?ts.map(s=>{const c=DB.clients.find(x=>x.id===s.clientId);return`<div class="session-item">
-    <div class="session-time">${s.time}</div>
-    <div class="session-client"><div class="name">${c?c.name:'Unknown'}</div><div class="sub">${s.bodyParts&&s.bodyParts.length?s.bodyParts.join(', '):''}</div></div>
-    <div class="session-actions">${s.paid?'<span class="btn-sm btn-paid">Paid ✅</span>':`<button class="btn-sm btn-unpaid" onclick="quickPaid('${s.id}')">Mark Paid</button><button class="btn-sm btn-blue" onclick="invoiceFromSession('${s.id}')">Invoice</button>`}</div>
-  </div>`}).join(''):'<div class="empty"><div class="ei">📋</div><p>No sessions today. Tap + to add!</p></div>';
+  sd.innerHTML=ts.length?ts.map(s=>{
+    const c=DB.clients.find(x=>x.id===s.clientId);
+    const reminderOn=!!s.reminder;
+    const phone=c?(c.phone||'').replace(/\D/g,''):'';
+    const remindMsg=buildReminderMsg(c,s);
+    const remindBtn=phone?`<a class="btn-sm btn-blue" href="sms:${phone}?body=${encodeURIComponent(remindMsg)}" style="text-decoration:none">💬 Remind</a>`:'';
+    const reminderLabel=reminderOn?`<div class="reminder-on-label">Reminder ON</div>`:'';
+    return`<div class="session-item">
+      <div class="session-time">${s.time}</div>
+      <div class="session-client">
+        <div class="name">${c?c.name:'Unknown'}</div>
+        <div class="sub">${s.bodyParts&&s.bodyParts.length?s.bodyParts.join(', '):''}</div>
+        ${reminderLabel}
+      </div>
+      <div class="session-actions" style="flex-wrap:wrap;gap:4px">
+        ${s.paid?'<span class="btn-sm btn-paid">Paid ✅</span>':`<button class="btn-sm btn-unpaid" onclick="quickPaid('${s.id}')">Mark Paid</button><button class="btn-sm btn-blue" onclick="invoiceFromSession('${s.id}')">Invoice</button>`}
+        <button class="reminder-toggle ${reminderOn?'on':''}" onclick="toggleReminder('${s.id}',true)">${reminderOn?'🔔':'🔕'}</button>
+        ${remindBtn}
+      </div>
+    </div>`;
+  }).join(''):'<div class="empty"><div class="ei">📋</div><p>No sessions today. Tap + to add!</p></div>';
   // Tasks today
   const tt=DB.tasks.filter(x=>!x.done&&x.datetime&&x.datetime.startsWith(t));
   document.getElementById('todayTasks').innerHTML=tt.length?tt.map(x=>`<div class="task-item">
@@ -1076,11 +1129,24 @@ function renderDaySched() {
   const ss=DB.sessions.filter(s=>s.date===selectedDate).sort((a,b)=>a.time.localeCompare(b.time));
   document.getElementById('schedContent').innerHTML=ss.length?'<div class="card">'+ss.map(s=>{
     const c=DB.clients.find(x=>x.id===s.clientId);
+    const reminderOn=!!s.reminder;
+    const firstName=(c?c.name:'').split(' ')[0];
+    const phone=c?(c.phone||'').replace(/\D/g,''):'';
+    const remindMsg=buildReminderMsg(c,s);
+    const remindBtn=phone?`<a class="btn-sm btn-blue" href="sms:${phone}?body=${encodeURIComponent(remindMsg)}" style="text-decoration:none">💬 Remind</a>`:'';
+    const reminderLabel=reminderOn?`<div class="reminder-on-label">Reminder ON</div>`:'';
     return`<div class="session-item">
       <div class="session-time">${s.time}</div>
-      <div class="session-client"><div class="name">${c?c.name:'Unknown'}</div><div class="sub">${s.duration||60}min${s.bodyParts&&s.bodyParts.length?' · '+s.bodyParts.join(', '):''}</div>${s.notes?`<div class="sub" style="margin-top:2px">${s.notes}</div>`:''}</div>
-      <div class="session-actions">
+      <div class="session-client">
+        <div class="name">${c?c.name:'Unknown'}</div>
+        <div class="sub">${s.duration||60}min${s.bodyParts&&s.bodyParts.length?' · '+s.bodyParts.join(', '):''}</div>
+        ${s.notes?`<div class="sub" style="margin-top:2px">${s.notes}</div>`:''}
+        ${reminderLabel}
+      </div>
+      <div class="session-actions" style="flex-wrap:wrap;gap:4px">
         ${s.paid?'<span class="btn-sm btn-paid">Paid ✅</span>':`<button class="btn-sm btn-unpaid" onclick="quickPaid('${s.id}')">Paid</button>`}
+        <button class="reminder-toggle ${reminderOn?'on':''}" onclick="toggleReminder('${s.id}')">${reminderOn?'🔔':'🔕'}</button>
+        ${remindBtn}
         <button class="btn-sm btn-gold" onclick="openResched('${s.id}')">📅</button>
         <button class="btn-sm btn-unpaid" onclick="delSession('${s.id}')">🗑️</button>
       </div>
@@ -1127,7 +1193,18 @@ async function saveClient() {
 }
 function renderClients(filter='') {
   let cs=DB.clients;if(filter)cs=cs.filter(c=>c.name.toLowerCase().includes(filter.toLowerCase())||c.phone.includes(filter));
-  document.getElementById('clientList').innerHTML=cs.length?cs.map(c=>`<div class="client-item" onclick="openProf('${c.id}')"><div class="client-avatar">${c.name.charAt(0).toUpperCase()}</div><div class="client-info"><div class="client-name">${c.name}</div><div class="client-phone">${c.phone}${c.email?' · '+c.email:''}</div></div><span style="color:var(--text2);font-size:20px">›</span></div>`).join(''):'<div class="empty"><div class="ei">👥</div><p>No clients yet. Tap + to add!</p></div>';
+  document.getElementById('clientList').innerHTML=cs.length?cs.map(c=>{
+    const phone=(c.phone||'').replace(/\D/g,'');
+    const callBtn=c.phone?`<a class="contact-action-btn btn-call" href="tel:${phone}" onclick="event.stopPropagation()" title="Call">📞</a>`:'';
+    const textBtn=c.phone?`<a class="contact-action-btn btn-text" href="sms:${phone}" onclick="event.stopPropagation()" title="Text">💬</a>`:'';
+    const emailBtn=c.email?`<a class="contact-action-btn btn-email-c" href="mailto:${c.email}" onclick="event.stopPropagation()" title="Email">📧</a>`:'';
+    return`<div class="client-item" onclick="openProf('${c.id}')">
+      <div class="client-avatar">${c.name.charAt(0).toUpperCase()}</div>
+      <div class="client-info"><div class="client-name">${c.name}</div><div class="client-phone">${c.phone}${c.email?' · '+c.email:''}</div></div>
+      <div class="contact-actions" onclick="event.stopPropagation()">${callBtn}${textBtn}${emailBtn}</div>
+      <span style="color:var(--text2);font-size:20px;margin-left:4px">›</span>
+    </div>`;
+  }).join(''):'<div class="empty"><div class="ei">👥</div><p>No clients yet. Tap + to add!</p></div>';
 }
 function filterClients(){renderClients(document.getElementById('clientSearch').value);}
 
@@ -1166,7 +1243,13 @@ function switchProfTab(tab, btn) {
       </div>
     </div>`}).join(''):'<div class="empty"><div class="ei">📊</div><p>No progress logged yet.</p></div>');
   } else if(tab==='info') {
+    const phone=(c.phone||'').replace(/\D/g,'');
+    const callBtn=c.phone?`<a class="contact-action-btn btn-call" href="tel:${phone}" title="Call ${c.name}">📞 Call</a>`:'';
+    const textBtn=c.phone?`<a class="contact-action-btn btn-text" href="sms:${phone}" title="Text ${c.name}" style="border-radius:20px;padding:5px 10px;font-size:12px;font-weight:700;text-decoration:none">💬 Text</a>`:'';
+    const emailBtn=c.email?`<a class="contact-action-btn btn-email-c" href="mailto:${c.email}" title="Email ${c.name}" style="border-radius:20px;padding:5px 10px;font-size:12px;font-weight:700;text-decoration:none">📧 Email</a>`:'';
+    const quickContactBar=(callBtn||textBtn||emailBtn)?`<div class="contact-action-inline" style="margin-bottom:14px">${callBtn}${textBtn}${emailBtn}</div>`:'';
     co.innerHTML=`
+      ${quickContactBar}
       <div class="form-group"><label class="form-label">Name</label><input class="form-input" value="${c.name}" onchange="updC('${c.id}','name',this.value)"/></div>
       <div class="form-group"><label class="form-label">Phone</label><input class="form-input" value="${c.phone||''}" onchange="updC('${c.id}','phone',this.value)"/></div>
       <div class="form-group"><label class="form-label">Email</label><input class="form-input" value="${c.email||''}" onchange="updC('${c.id}','email',this.value)"/></div>
@@ -1687,6 +1770,93 @@ function saveCalcInline(){
   if(!c.progress)c.progress=[];
   c.progress.push({date:today(),type:'calculator',...lastCalcResult,notes:'Calculator result'});
   saveDB();syncToFirebase('ptm_clients',c);toast('Saved to '+c.name+' history! ✅','ok');
+}
+
+// ===== REMINDER HELPERS =====
+function buildReminderMsg(client, session) {
+  const firstName = client ? client.name.split(' ')[0] : 'there';
+  const sessionDate = session.date ? new Date(session.date + 'T12:00:00') : new Date();
+  const dayName = sessionDate.toLocaleDateString('en-US', {weekday: 'long'});
+  const dateFmt = sessionDate.toLocaleDateString('en-US', {month: 'long', day: 'numeric'});
+  const timeFmt = fmtTime12(session.time);
+  return `Hi ${firstName}, just a reminder that your private training session is scheduled for ${dayName}, ${dateFmt} at ${timeFmt}. I'm looking forward to seeing you. To confirm or make changes, please reply to this message.`;
+}
+
+function fmtTime12(timeStr) {
+  if (!timeStr) return '';
+  try {
+    const [h, m] = timeStr.split(':').map(Number);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
+  } catch(e) { return timeStr; }
+}
+
+async function toggleReminder(sessionId, fromHome) {
+  const s = DB.sessions.find(x => x.id === sessionId);
+  if (!s) return;
+  s.reminder = !s.reminder;
+  saveDB();
+  if (fromHome) renderHome(); else renderDaySched();
+  toast(s.reminder ? '🔔 Reminder ON' : '🔕 Reminder OFF', s.reminder ? 'ok' : '');
+  await syncToFirebase('ptm_sessions', s);
+}
+
+// Track current reminder being shown
+let _activeReminderSession = null;
+
+function showReminderModal(session, client) {
+  _activeReminderSession = { session, client };
+  const firstName = client ? client.name.split(' ')[0] : 'Client';
+  const timeFmt = fmtTime12(session.time);
+  const clientName = client ? client.name : 'Client';
+  document.getElementById('reminderModalMsg').innerHTML =
+    `<strong>${clientName}</strong> has a session in 30 minutes at <strong>${timeFmt}</strong>`;
+  const btn = document.getElementById('reminderSmsBtn');
+  btn.textContent = `📱 Send Text to ${firstName}`;
+  document.getElementById('sessionReminderModal').classList.add('open');
+}
+
+function sendReminderSMS() {
+  if (!_activeReminderSession) return;
+  const { session, client } = _activeReminderSession;
+  const phone = client ? (client.phone || '').replace(/\D/g, '') : '';
+  if (!phone) { toast('No phone number on file', 'err'); return; }
+  const msg = buildReminderMsg(client, session);
+  window.open(`sms:${phone}?body=${encodeURIComponent(msg)}`);
+  dismissReminderModal();
+}
+
+function dismissReminderModal() {
+  document.getElementById('sessionReminderModal').classList.remove('open');
+  _activeReminderSession = null;
+}
+
+function checkSessionReminders() {
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  let reminded = {};
+  try { reminded = JSON.parse(localStorage.getItem('ptm_reminded') || '{}'); } catch(e) {}
+
+  DB.sessions.forEach(s => {
+    if (!s.reminder) return;
+    if (!s.date || !s.time) return;
+    if (reminded[s.id]) return;
+    const sessionDT = new Date(s.date + 'T' + s.time + ':00');
+    const diffMin = (sessionDT - now) / 60000;
+    if (diffMin >= 28 && diffMin <= 32) {
+      // Mark as reminded
+      reminded[s.id] = true;
+      localStorage.setItem('ptm_reminded', JSON.stringify(reminded));
+      const client = DB.clients.find(x => x.id === s.clientId);
+      const clientName = client ? client.name : 'Client';
+      const timeFmt = fmtTime12(s.time);
+      // Fire in-app bell notification
+      addNotif(`⏰ Upcoming session in 30 min: ${clientName} at ${timeFmt}`);
+      // Show reminder modal
+      showReminderModal(s, client);
+    }
+  });
 }
 
 // ===== INIT =====
