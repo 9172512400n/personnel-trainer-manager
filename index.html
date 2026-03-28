@@ -426,24 +426,51 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
       <h2 id="loginBizName">Zohar Personal Trainer</h2>
       <p>Personnel Trainer Manager</p>
     </div>
-    <div style="background:rgba(245,166,35,0.1);border:1px solid var(--gold);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:var(--gold);font-weight:700;text-align:center">🔐 Invite-only access. Contact nirmaman@me.com to request access.</div>
-    <div class="form-group">
-      <label class="form-label">Email</label>
-      <input type="email" class="form-input" id="loginEmail" placeholder="your@email.com" autocomplete="email"/>
+    <!-- Login / Signup tabs -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <button id="tabLogin" onclick="switchAuthTab('login')" style="flex:1;padding:10px;border-radius:10px;border:none;background:var(--gold);color:#000;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;">Sign In</button>
+      <button id="tabSignup" onclick="switchAuthTab('signup')" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--text2);font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;">Sign Up</button>
     </div>
-    <div class="form-group">
-      <label class="form-label">Password</label>
-      <input type="password" class="form-input" id="loginPass" placeholder="Password" autocomplete="current-password"/>
+
+    <!-- Sign In form -->
+    <div id="formLogin">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-input" id="loginEmail" placeholder="your@email.com" autocomplete="email"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-input" id="loginPass" placeholder="Password" autocomplete="current-password"/>
+      </div>
+      <div class="remember-row">
+        <input type="checkbox" id="rememberMe" checked/>
+        <label for="rememberMe">Remember me on this device</label>
+      </div>
+      <button class="btn-primary" id="authBtn" onclick="doAuth()">Sign In</button>
+      <div style="text-align:center;margin-top:10px;">
+        <button onclick="doForgotPassword()" style="background:none;border:none;color:var(--gold);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:underline;">Forgot password?</button>
+      </div>
     </div>
-    <div class="remember-row">
-      <input type="checkbox" id="rememberMe" checked/>
-      <label for="rememberMe">Remember me on this device</label>
+
+    <!-- Sign Up form -->
+    <div id="formSignup" style="display:none;">
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input type="text" class="form-input" id="signupName" placeholder="Your full name"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-input" id="signupEmail" placeholder="your@email.com"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password (min 6 chars)</label>
+        <input type="password" class="form-input" id="signupPass" placeholder="Create password"/>
+      </div>
+      <button class="btn-primary" id="signupBtn" onclick="doSignup()">🚀 Request Access</button>
+      <p style="color:var(--text2);font-size:12px;text-align:center;margin-top:10px;">After signing up, your account needs admin approval before you can log in.</p>
     </div>
-    <button class="btn-primary" id="authBtn" onclick="doAuth()">Sign In</button>
-    <div style="text-align:center;margin-top:10px;">
-      <button onclick="doForgotPassword()" style="background:none;border:none;color:var(--gold);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:underline;">Forgot password?</button>
-    </div>
-    <div style="text-align:center;color:var(--text2);font-size:13px;margin:6px 0;font-weight:700">— or —</div>
+
+    <div style="text-align:center;color:var(--text2);font-size:13px;margin:12px 0;font-weight:700">— or —</div>
     <button class="btn-outline" onclick="doDemo()">⚡ Continue as Demo</button>
     <div id="loginErr" style="display:none;color:var(--red);font-size:13px;text-align:center;margin-top:10px;padding:8px;background:rgba(244,67,54,0.1);border-radius:8px;font-weight:700"></div>
   </div>
@@ -456,6 +483,7 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
   <div class="drawer-item" onclick="closeDrawer();openM('settingsModal')">🏢 Business Settings</div>
   <div class="drawer-item" onclick="closeDrawer();openM('calculatorsModal')">📐 Calculators</div>
   <div class="drawer-item" id="inviteUserDrawer" style="display:none" onclick="closeDrawer();openM('inviteModal')">✉️ Invite User</div>
+  <div class="drawer-item" id="adminPanelDrawer" style="display:none" onclick="closeDrawer();showAdminPanel()">👥 User Management <span id="pendingBadge" style="background:var(--red);color:#fff;padding:2px 7px;border-radius:100px;font-size:11px;margin-left:6px;display:none;">0</span></div>
   <div class="drawer-item" onclick="closeDrawer();openM('addClientModal')">👤 Add Client</div>
   <div class="drawer-item" onclick="closeDrawer();openM('addSessionModal')">📅 Add Session</div>
   <div class="drawer-item" onclick="closeDrawer();openM('addInvoiceModal')">💸 New Invoice</div>
@@ -834,6 +862,33 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
   </div>
 </div>
 
+<!-- ADMIN PANEL MODAL -->
+<div class="modal-overlay" id="adminPanelModal">
+  <div class="modal" style="max-width:500px;width:95%;">
+    <div class="modal-header">
+      <div class="modal-title">👥 User Management</div>
+      <button class="modal-close" onclick="closeM('adminPanelModal')">✕</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <button onclick="filterAdminUsers('pending')" id="filterPending" style="flex:1;padding:8px;border-radius:8px;border:none;background:var(--gold);color:#000;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;">⏳ Pending</button>
+      <button onclick="filterAdminUsers('active')" id="filterActive" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text2);font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;">✅ Active</button>
+      <button onclick="filterAdminUsers('all')" id="filterAll" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text2);font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;">👥 All</button>
+    </div>
+    <div id="adminUserList" style="display:flex;flex-direction:column;gap:10px;max-height:400px;overflow-y:auto;"></div>
+  </div>
+</div>
+
+<!-- PENDING APPROVAL SCREEN -->
+<div class="modal-overlay" id="pendingScreen" style="z-index:9999;">
+  <div class="modal" style="text-align:center;">
+    <div style="font-size:48px;margin-bottom:16px;">⏳</div>
+    <div style="font-size:20px;font-weight:900;color:var(--text);margin-bottom:8px;">Awaiting Approval</div>
+    <div style="font-size:14px;color:var(--text2);margin-bottom:20px;line-height:1.6;">Your account has been created and is pending admin approval.<br>You'll be able to log in once approved.</div>
+    <div style="background:var(--card2);border-radius:10px;padding:12px;font-size:13px;color:var(--text2);margin-bottom:20px;">📧 The admin has been notified of your request.</div>
+    <button onclick="document.getElementById('pendingScreen').style.display='none';doSignOut();" style="background:var(--gold);color:#000;border:none;padding:12px 28px;border-radius:10px;font-weight:800;font-size:15px;cursor:pointer;font-family:inherit;">OK, I'll wait</button>
+  </div>
+</div>
+
 <!-- ADD MEASUREMENTS MODAL -->
 <div class="modal-overlay" id="addMeasureModal">
   <div class="modal">
@@ -966,6 +1021,175 @@ async function doForgotPassword() {
 }
 window.doForgotPassword = doForgotPassword;
 
+// ── AUTH TAB SWITCH ──
+function switchAuthTab(tab) {
+  document.getElementById('formLogin').style.display = tab==='login' ? 'block' : 'none';
+  document.getElementById('formSignup').style.display = tab==='signup' ? 'block' : 'none';
+  document.getElementById('tabLogin').style.background = tab==='login' ? 'var(--gold)' : 'transparent';
+  document.getElementById('tabLogin').style.color = tab==='login' ? '#000' : 'var(--text2)';
+  document.getElementById('tabLogin').style.border = tab==='login' ? 'none' : '1px solid var(--border)';
+  document.getElementById('tabSignup').style.background = tab==='signup' ? 'var(--gold)' : 'transparent';
+  document.getElementById('tabSignup').style.color = tab==='signup' ? '#000' : 'var(--text2)';
+  document.getElementById('tabSignup').style.border = tab==='signup' ? 'none' : '1px solid var(--border)';
+}
+window.switchAuthTab = switchAuthTab;
+
+// ── SIGN UP (request access) ──
+async function doSignup() {
+  const name = document.getElementById('signupName').value.trim();
+  const email = document.getElementById('signupEmail').value.trim();
+  const pass = document.getElementById('signupPass').value;
+  if (!name||!email||!pass) { showErr('Please fill in all fields.'); return; }
+  if (pass.length < 6) { showErr('Password must be at least 6 characters.'); return; }
+  const btn = document.getElementById('signupBtn');
+  btn.innerHTML = '<span class="spinner"></span> Creating account…'; btn.disabled = true;
+  try {
+    // Create Firebase Auth account
+    await window.fbSignUp(email, pass);
+    // Save to Firestore as pending
+    const {addDoc, collection, serverTimestamp} = window._fbFns;
+    await addDoc(collection(window._fbFS, 'ptm_allowed_users'), {
+      email: email.toLowerCase(),
+      name: name,
+      status: 'pending',
+      requestedAt: serverTimestamp()
+    });
+    // Show pending screen
+    document.getElementById('loginPage').classList.remove('open');
+    document.getElementById('pendingScreen').style.display = 'flex';
+    // Sign them out until approved
+    setTimeout(() => window.fbSignOut && window.fbSignOut(), 500);
+  } catch(e) {
+    const msgs = {
+      'auth/email-already-in-use': 'An account with this email already exists. Try signing in.',
+      'auth/invalid-email': 'Invalid email address.',
+      'auth/weak-password': 'Password too weak — use 6+ characters.'
+    };
+    showErr(msgs[e.code] || 'Error: ' + e.message);
+  } finally {
+    btn.textContent = '🚀 Request Access'; btn.disabled = false;
+  }
+}
+window.doSignup = doSignup;
+
+// ── CHECK APPROVAL STATUS ON LOGIN ──
+async function checkApprovalStatus(email) {
+  if (isAllowed(email)) return 'approved';
+  try {
+    const {collection, getDocs, query, where} = window._fbFns;
+    // Check ptm_allowed_users
+    const q = query(collection(window._fbFS, 'ptm_allowed_users'), where('email', '==', email.toLowerCase()));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      const doc = snap.docs[0].data();
+      return doc.status === 'pending' ? 'pending' : 'approved';
+    }
+    return 'denied';
+  } catch(e) { return 'denied'; }
+}
+window.checkApprovalStatus = checkApprovalStatus;
+
+// ── ADMIN: LOAD PENDING COUNT ──
+async function loadPendingCount() {
+  try {
+    const {collection, getDocs, query, where} = window._fbFns;
+    const q = query(collection(window._fbFS, 'ptm_allowed_users'), where('status', '==', 'pending'));
+    const snap = await getDocs(q);
+    const badge = document.getElementById('pendingBadge');
+    if (badge) {
+      badge.textContent = snap.size;
+      badge.style.display = snap.size > 0 ? 'inline' : 'none';
+    }
+  } catch(e) {}
+}
+window.loadPendingCount = loadPendingCount;
+
+// ── ADMIN PANEL ──
+let _adminFilter = 'pending';
+async function showAdminPanel() {
+  openM('adminPanelModal');
+  filterAdminUsers('pending');
+}
+window.showAdminPanel = showAdminPanel;
+
+async function filterAdminUsers(filter) {
+  _adminFilter = filter;
+  ['pending','active','all'].forEach(f => {
+    const btn = document.getElementById('filter'+f.charAt(0).toUpperCase()+f.slice(1));
+    if (btn) {
+      btn.style.background = f===filter ? 'var(--gold)' : 'transparent';
+      btn.style.color = f===filter ? '#000' : 'var(--text2)';
+      btn.style.border = f===filter ? 'none' : '1px solid var(--border)';
+    }
+  });
+  const listEl = document.getElementById('adminUserList');
+  listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text2);">Loading…</div>';
+  try {
+    const {collection, getDocs, query, where} = window._fbFns;
+    let q;
+    if (filter === 'pending') q = query(collection(window._fbFS, 'ptm_allowed_users'), where('status','==','pending'));
+    else if (filter === 'active') q = query(collection(window._fbFS, 'ptm_allowed_users'), where('status','==','approved'));
+    else q = collection(window._fbFS, 'ptm_allowed_users');
+    const snap = await getDocs(q);
+    if (snap.empty) { listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text2);">No users found.</div>'; return; }
+    listEl.innerHTML = snap.docs.map(d => {
+      const u = d.data();
+      const id = d.id;
+      const status = u.status || 'approved';
+      return `<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+          <div>
+            <div style="font-weight:800;font-size:14px;">${u.name||u.email}</div>
+            <div style="font-size:12px;color:var(--text2);">${u.email}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px;">${status==='pending'?'⏳ Pending approval':status==='approved'?'✅ Active':'❌ Rejected'}</div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            ${status==='pending' ? `
+              <button onclick="approveUser('${id}','${u.email}')" style="background:#16a34a;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;">✅ Approve</button>
+              <button onclick="rejectUser('${id}')" style="background:var(--red);color:#fff;border:none;padding:8px 14px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;">❌ Reject</button>
+            ` : `
+              <button onclick="revokeUser('${id}','${u.email}')" style="background:var(--red);color:#fff;border:none;padding:8px 14px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;">🚫 Revoke</button>
+            `}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { listEl.innerHTML = '<div style="color:var(--red);padding:20px;">Error: '+e.message+'</div>'; }
+}
+window.filterAdminUsers = filterAdminUsers;
+
+async function approveUser(docId, email) {
+  try {
+    const {doc, updateDoc} = window._fbFns;
+    await updateDoc(doc(window._fbFS, 'ptm_allowed_users', docId), {status: 'approved', approvedAt: new Date().toISOString(), approvedBy: DB.user.email});
+    toast('✅ '+email+' approved!', 'ok');
+    filterAdminUsers(_adminFilter);
+    loadPendingCount();
+  } catch(e) { toast('Error: '+e.message,'err'); }
+}
+window.approveUser = approveUser;
+
+async function rejectUser(docId) {
+  try {
+    const {doc, updateDoc} = window._fbFns;
+    await updateDoc(doc(window._fbFS, 'ptm_allowed_users', docId), {status: 'rejected'});
+    toast('Rejected', 'ok');
+    filterAdminUsers(_adminFilter);
+    loadPendingCount();
+  } catch(e) { toast('Error: '+e.message,'err'); }
+}
+window.rejectUser = rejectUser;
+
+async function revokeUser(docId, email) {
+  try {
+    const {doc, updateDoc} = window._fbFns;
+    await updateDoc(doc(window._fbFS, 'ptm_allowed_users', docId), {status: 'revoked'});
+    toast('🚫 Access revoked for '+email, 'ok');
+    filterAdminUsers(_adminFilter);
+  } catch(e) { toast('Error: '+e.message,'err'); }
+}
+window.revokeUser = revokeUser;
+
 async function checkAllowedFirestore(email) {
   // Check hardcoded list first
   if (isAllowed(email)) return true;
@@ -991,9 +1215,10 @@ async function doAuth() {
   const btn=document.getElementById('authBtn');
   btn.innerHTML='<span class="spinner"></span>Please wait...';btn.disabled=true;
   try {
-    // Check access — hardcoded list OR Firestore invited users
-    const allowed = await checkAllowedFirestore(email);
-    if(!allowed){showErr('Access restricted. Please contact nirmaman@me.com for an invitation.');btn.textContent='Sign In';btn.disabled=false;return;}
+    // Check access — hardcoded list OR Firestore
+    const status = await checkApprovalStatus(email);
+    if(status === 'pending'){showErr('⏳ Your account is pending approval. Please wait for admin to approve your request.');btn.textContent='Sign In';btn.disabled=false;return;}
+    if(status === 'denied'){showErr('Access restricted. Sign up to request access.');btn.textContent='Sign In';btn.disabled=false;return;}
     if(window.fbSignIn) { await window.fbSignIn(email,pass); }
     else { fallbackLogin(email); }
   } catch(e) {
@@ -1096,6 +1321,9 @@ function loadApp() {
   // Show admin-only features
   const adminEl=document.getElementById('inviteUserDrawer');
   if(adminEl)adminEl.style.display=isAdmin(DB.user?.email||'')?'flex':'none';
+  const adminPanel=document.getElementById('adminPanelDrawer');
+  if(adminPanel)adminPanel.style.display=isAdmin(DB.user?.email||'')?'flex':'none';
+  if(isAdmin(DB.user?.email||'')) loadPendingCount();
   // Apply logo
   applyLogo();
   // Init notifications
