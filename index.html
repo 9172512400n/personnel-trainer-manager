@@ -944,15 +944,34 @@ function isAllowed(email) { return ALLOWED_EMAILS.includes(email.toLowerCase());
 function isAdmin(email) { return email&&ADMIN_EMAILS.some(a=>a.toLowerCase()===email.toLowerCase()); }
 
 // ===== AUTH =====
+async function checkAllowedFirestore(email) {
+  // Check hardcoded list first
+  if (isAllowed(email)) return true;
+  // Then check Firestore ptm_allowed_users collection
+  try {
+    const { collection, getDocs, query, where } = window._fbFns;
+    const q = query(collection(window._fbFS, 'ptm_allowed_users'), where('email', '==', email.toLowerCase()));
+    const snap = await getDocs(q);
+    if (!snap.empty) return true;
+    // Also check users collection
+    const q2 = query(collection(window._fbFS, 'users'), where('email', '==', email.toLowerCase()));
+    const snap2 = await getDocs(q2);
+    return !snap2.empty;
+  } catch(e) {
+    return false;
+  }
+}
+
 async function doAuth() {
   const email=document.getElementById('loginEmail').value.trim();
   const pass=document.getElementById('loginPass').value;
   if(!email||!pass){showErr('Please enter email and password.');return;}
-  // Access control check
-  if(!isAllowed(email)){showErr('Access restricted. Please contact nirmaman@me.com for an invitation.');return;}
   const btn=document.getElementById('authBtn');
   btn.innerHTML='<span class="spinner"></span>Please wait...';btn.disabled=true;
   try {
+    // Check access — hardcoded list OR Firestore invited users
+    const allowed = await checkAllowedFirestore(email);
+    if(!allowed){showErr('Access restricted. Please contact nirmaman@me.com for an invitation.');btn.textContent='Sign In';btn.disabled=false;return;}
     if(window.fbSignIn) { await window.fbSignIn(email,pass); }
     else { fallbackLogin(email); }
   } catch(e) {
