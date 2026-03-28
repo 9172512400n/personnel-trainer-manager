@@ -828,7 +828,9 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
     <div class="modal-header"><div class="modal-title">✉️ Invite User</div><button class="modal-close" onclick="closeM('inviteModal')">✕</button></div>
     <p style="color:var(--text2);font-size:14px;margin-bottom:14px;font-weight:600">Enter the email address to allow access to this app:</p>
     <div class="form-group"><label class="form-label">Email Address</label><input type="email" class="form-input" id="inviteEmail" placeholder="user@email.com"/></div>
-    <button class="btn-primary" onclick="sendInvite()">✉️ Grant Access</button>
+    <div class="form-group"><label class="form-label">Name (optional)</label><input type="text" class="form-input" id="inviteName" placeholder="John Smith"/></div>
+    <button class="btn-primary" onclick="sendInvite()">✉️ Grant Access & Send Invite</button>
+    <p style="color:var(--text3);font-size:12px;margin-top:10px;text-align:center;">An invite email will open in your mail app to send to the user.</p>
   </div>
 </div>
 
@@ -1734,17 +1736,80 @@ function fmtDT(dt){if(!dt)return'';try{const d=new Date(dt);return d.toLocaleDat
 
 // ===== INVITE USER (admin only) =====
 async function sendInvite() {
-  const email=document.getElementById('inviteEmail').value.trim();
-  if(!email){toast('Enter an email address','err');return;}
-  // Add to allowed list in Firebase
-  if(window._fbFirebase&&window._fbUser) {
+  const email = document.getElementById('inviteEmail').value.trim();
+  if (!email) { toast('Enter an email address', 'err'); return; }
+
+  // 1. Add to Firestore allowed list
+  if (window._fbFirebase && window._fbUser) {
     try {
-      const {addDoc,collection,serverTimestamp}=window._fbFns;
-      await addDoc(collection(window._fbFS,'ptm_allowed_users'),{email:email.toLowerCase(),invitedBy:DB.user.email,createdAt:serverTimestamp()});
-      toast('✉️ Access granted to '+email,'ok');
-    } catch(e){toast('Error: '+e.message,'err');return;}
+      const {addDoc, collection, serverTimestamp} = window._fbFns;
+      await addDoc(collection(window._fbFS, 'ptm_allowed_users'), {
+        email: email.toLowerCase(),
+        invitedBy: DB.user.email,
+        createdAt: serverTimestamp()
+      });
+    } catch(e) { toast('Error saving invite: ' + e.message, 'err'); return; }
   }
-  closeM('inviteModal');document.getElementById('inviteEmail').value='';
+
+  // 2. Send invite email via EmailJS
+  try {
+    const bizName = DB.settings?.bizName || 'Zohar Personal Trainer';
+    const inviterEmail = DB.user?.email || 'nirmaman@me.com';
+    const templateParams = {
+      to_email: email,
+      to_name: email.split('@')[0],
+      from_name: bizName,
+      from_email: inviterEmail,
+      app_url: 'https://www.mytrainer.vip',
+      message: `You have been invited to access ${bizName} app at https://www.mytrainer.vip\n\nUse this email (${email}) to create your account or sign in.\n\nIf you don't have an account yet, please contact ${inviterEmail} to set one up.`
+    };
+
+    // Use EmailJS public API
+    const res = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        service_id: 'service_gmail',
+        template_id: 'template_invite',
+        user_id: 'YOUR_EMAILJS_PUBLIC_KEY',
+        template_params: templateParams
+      })
+    });
+
+    if (res.ok) {
+      toast('✉️ Invite sent to ' + email, 'ok');
+    } else {
+      // EmailJS not configured yet — still show success since Firestore was updated
+      toast('✅ Access granted to ' + email + ' (email notification pending setup)', 'ok');
+    }
+  } catch(e) {
+    toast('✅ Access granted to ' + email, 'ok');
+  }
+
+  // 3. Open mailto so admin can send invite email
+  const name = document.getElementById('inviteName')?.value?.trim() || email.split('@')[0];
+  const bizName = DB.settings?.bizName || 'Zohar Personal Trainer';
+  const subject = encodeURIComponent(`You're invited to ${bizName}`);
+  const body = encodeURIComponent(
+`Hi ${name},
+
+You have been invited to access the ${bizName} app.
+
+Click the link below to get started:
+https://www.mytrainer.vip
+
+Sign in using this email address: ${email}
+
+If you don't have an account yet, use the "Sign Up" option on the app and register with this email.
+
+Welcome aboard!
+${DB.user?.email || ''}`
+  );
+  window.open(`mailto:${email}?subject=${subject}&body=${body}`, '_blank');
+
+  closeM('inviteModal');
+  document.getElementById('inviteEmail').value = '';
+  if (document.getElementById('inviteName')) document.getElementById('inviteName').value = '';
 }
 
 // ===== NOTIFICATIONS / BELL =====
