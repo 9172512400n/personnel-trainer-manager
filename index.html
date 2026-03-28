@@ -937,10 +937,11 @@ function applyTheme(t) {
 function toggleTheme() { applyTheme(DB.theme==='dark'?'light':'dark'); }
 
 // ===== ACCESS CONTROL =====
-const ALLOWED_EMAILS = ['nirmaman@me.com', 'zoharmaman@me.com'];
+const ALLOWED_EMAILS = ['nirmaman@me.com', 'zoharmaman@me.com', 'nir@mamancontracting.com'];
 const ADMIN_EMAIL = 'nirmaman@me.com';
+const ADMIN_EMAILS = ['nirmaman@me.com', 'nir@mamancontracting.com'];
 function isAllowed(email) { return ALLOWED_EMAILS.includes(email.toLowerCase()); }
-function isAdmin(email) { return email&&email.toLowerCase()===ADMIN_EMAIL.toLowerCase(); }
+function isAdmin(email) { return email&&ADMIN_EMAILS.some(a=>a.toLowerCase()===email.toLowerCase()); }
 
 // ===== AUTH =====
 async function doAuth() {
