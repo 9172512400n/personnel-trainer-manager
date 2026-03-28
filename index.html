@@ -466,8 +466,12 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
         <label class="form-label">Password (min 6 chars)</label>
         <input type="password" class="form-input" id="signupPass" placeholder="Create password"/>
       </div>
-      <button class="btn-primary" id="signupBtn" onclick="doSignup()">🚀 Request Access</button>
-      <p style="color:var(--text2);font-size:12px;text-align:center;margin-top:10px;">After signing up, your account needs admin approval before you can log in.</p>
+      <div class="form-group">
+        <label class="form-label">Invite Code</label>
+        <input type="text" class="form-input" id="signupCode" placeholder="Enter invite code" style="letter-spacing:4px;font-weight:800;"/>
+      </div>
+      <button class="btn-primary" id="signupBtn" onclick="doSignup()">🚀 Create Account</button>
+      <p style="color:var(--text2);font-size:12px;text-align:center;margin-top:10px;">Need an invite code? Contact your administrator.</p>
     </div>
 
     <div style="text-align:center;color:var(--text2);font-size:13px;margin:12px 0;font-weight:700">— or —</div>
@@ -1039,26 +1043,26 @@ async function doSignup() {
   const name = document.getElementById('signupName').value.trim();
   const email = document.getElementById('signupEmail').value.trim();
   const pass = document.getElementById('signupPass').value;
-  if (!name||!email||!pass) { showErr('Please fill in all fields.'); return; }
+  const code = document.getElementById('signupCode').value.trim();
+  if (!name||!email||!pass||!code) { showErr('Please fill in all fields.'); return; }
+  if (code !== '9620') { showErr('Invalid invite code. Contact your administrator.'); return; }
   if (pass.length < 6) { showErr('Password must be at least 6 characters.'); return; }
   const btn = document.getElementById('signupBtn');
   btn.innerHTML = '<span class="spinner"></span> Creating account…'; btn.disabled = true;
   try {
     // Create Firebase Auth account
     await window.fbSignUp(email, pass);
-    // Save to Firestore as pending
+    // Save to Firestore as approved (code verified = no approval needed)
     const {addDoc, collection, serverTimestamp} = window._fbFns;
     await addDoc(collection(window._fbFS, 'ptm_allowed_users'), {
       email: email.toLowerCase(),
       name: name,
-      status: 'pending',
-      requestedAt: serverTimestamp()
+      status: 'approved',
+      registeredAt: serverTimestamp()
     });
-    // Show pending screen
+    // Auto login
+    toast('✅ Account created! Logging you in…', 'ok');
     document.getElementById('loginPage').classList.remove('open');
-    document.getElementById('pendingScreen').style.display = 'flex';
-    // Sign them out until approved
-    setTimeout(() => window.fbSignOut && window.fbSignOut(), 500);
   } catch(e) {
     const msgs = {
       'auth/email-already-in-use': 'An account with this email already exists. Try signing in.',
@@ -1067,7 +1071,7 @@ async function doSignup() {
     };
     showErr(msgs[e.code] || 'Error: ' + e.message);
   } finally {
-    btn.textContent = '🚀 Request Access'; btn.disabled = false;
+    btn.textContent = '🚀 Create Account'; btn.disabled = false;
   }
 }
 window.doSignup = doSignup;
